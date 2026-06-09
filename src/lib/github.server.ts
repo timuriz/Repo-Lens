@@ -40,6 +40,15 @@ async function fetchRawFile(
   }
 }
 
+export async function fetchSingleFile(
+  owner: string,
+  repo: string,
+  branch: string,
+  path: string,
+): Promise<FetchedFile | null> {
+  return fetchRawFile(owner, repo, branch, path);
+}
+
 export async function fetchFileContents(
   owner: string,
   repo: string,
