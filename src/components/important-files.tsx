@@ -53,7 +53,10 @@ export function ImportantFiles({ files }: Props) {
                   </p>
                   <Badge
                     variant="outline"
-                    className={cn("shrink-0 text-[10px] font-medium uppercase tracking-wide", ROLE_CLASS[f.role])}
+                    className={cn(
+                      "shrink-0 text-[10px] font-medium uppercase tracking-wide",
+                      ROLE_CLASS[f.role],
+                    )}
                   >
                     {ROLE_LABEL[f.role]}
                   </Badge>
@@ -65,7 +68,10 @@ export function ImportantFiles({ files }: Props) {
                 )}
                 <p className="mt-1 text-xs text-muted-foreground">{f.reason}</p>
               </div>
-              <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/60" title="Importance score">
+              <span
+                className="shrink-0 text-[10px] tabular-nums text-muted-foreground/60"
+                title="Importance score"
+              >
                 {f.score}
               </span>
             </div>

@@ -69,7 +69,10 @@ export function CodebaseBrief({ meta, files }: Props) {
         {frameworks.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {frameworks.map((t) => (
-              <span key={t} className="rounded-full border bg-muted/50 px-2 py-0.5 text-[11px] text-foreground/80">
+              <span
+                key={t}
+                className="rounded-full border bg-muted/50 px-2 py-0.5 text-[11px] text-foreground/80"
+              >
                 {t}
               </span>
             ))}
@@ -79,14 +82,17 @@ export function CodebaseBrief({ meta, files }: Props) {
 
       <Section icon={<Boxes className="size-4" />} title="Main modules">
         {modules.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Flat project — no top-level modules detected.</p>
+          <p className="text-sm text-muted-foreground">
+            Flat project — no top-level modules detected.
+          </p>
         ) : (
           <ul className="space-y-1.5">
             {modules.map((m) => (
               <li key={m.dir} className="flex items-baseline gap-2 text-sm">
                 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{m.dir}/</code>
                 <span className="text-xs text-muted-foreground">
-                  {m.count} files · {[...m.roles].filter((r) => r !== "other").join(", ") || "mixed"}
+                  {m.count} files ·{" "}
+                  {[...m.roles].filter((r) => r !== "other").join(", ") || "mixed"}
                 </span>
               </li>
             ))}
@@ -108,7 +114,8 @@ export function CodebaseBrief({ meta, files }: Props) {
 
       <Section icon={<GitFork className="size-4" />} title="Data flow" muted>
         <p className="text-sm text-muted-foreground">
-          Will trace how data moves between entrypoints, services, and storage once content analysis is enabled.
+          Will trace how data moves between entrypoints, services, and storage once content analysis
+          is enabled.
         </p>
       </Section>
 

@@ -21,7 +21,7 @@ export type AnalyzeRepoResult =
   | { status: "error"; message: string };
 
 export const analyzeRepo = createServerFn({ method: "POST" })
-  .inputValidator(inputSchema)
+  .validator(inputSchema)
   .handler(async ({ data }): Promise<AnalyzeRepoResult> => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return { status: "no_api_key" };

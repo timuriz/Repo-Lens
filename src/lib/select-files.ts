@@ -37,9 +37,7 @@ export function selectFilesForAnalysis(files: RepoFile[]): RepoFile[] {
   };
 
   push(sorted.find((f) => f.role === "overview"));
-  push(
-    sorted.find((f) => MANIFEST_NAMES.has((f.path.split("/").pop() ?? "").toLowerCase())),
-  );
+  push(sorted.find((f) => MANIFEST_NAMES.has((f.path.split("/").pop() ?? "").toLowerCase())));
   for (const f of sorted) {
     if (picked.length >= MAX_FILES) break;
     push(f);

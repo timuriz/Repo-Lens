@@ -115,10 +115,7 @@ export async function generateAnalysis(
   input: AnalysisInput,
 ): Promise<RepoAnalysis> {
   const fileSections = input.files
-    .map(
-      (f) =>
-        `### ${f.path}${f.truncated ? " (truncated)" : ""}\n\`\`\`\n${f.content}\n\`\`\``,
-    )
+    .map((f) => `### ${f.path}${f.truncated ? " (truncated)" : ""}\n\`\`\`\n${f.content}\n\`\`\``)
     .join("\n\n");
 
   const prompt = `Repository: ${input.owner}/${input.name}

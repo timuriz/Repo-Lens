@@ -1,18 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Telescope } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Loader2, Sparkles, Telescope, TriangleAlert } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 import { RepoInput } from "@/components/repo-input";
 import { FileTree } from "@/components/file-tree";
 import { ImportantFiles } from "@/components/important-files";
 import { AiOverviewPlaceholder } from "@/components/ai-overview-placeholder";
+import { AiBrief } from "@/components/ai-brief";
 import { CodebaseBrief } from "@/components/codebase-brief";
 import { RepoHeader } from "@/components/repo-header";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchRepo, type FetchRepoResult } from "@/lib/github";
 import { buildTree } from "@/lib/tree";
+import { buildStructureSummary, selectFilesForAnalysis } from "@/lib/select-files";
+import { analyzeRepo } from "@/lib/api/repo.functions";
+import type { RepoAnalysis } from "@/types/analysis";
+
+type AiState =
+  | { phase: "idle" }
+  | { phase: "loading" }
+  | { phase: "done"; analysis: RepoAnalysis }
+  | { phase: "no_key" }
+  | { phase: "error"; message: string };
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -37,8 +48,42 @@ export const Route = createFileRoute("/")({
 function Index() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FetchRepoResult | null>(null);
+  const [aiState, setAiState] = useState<AiState>({ phase: "idle" });
+  const analysisRun = useRef(0);
 
   const tree = useMemo(() => (data ? buildTree(data.files) : null), [data]);
+
+  const startAnalysis = async (result: FetchRepoResult) => {
+    const run = ++analysisRun.current;
+    setAiState({ phase: "loading" });
+
+    const selected = selectFilesForAnalysis(result.files);
+    try {
+      const res = await analyzeRepo({
+        data: {
+          owner: result.meta.owner,
+          name: result.meta.name,
+          branch: result.meta.defaultBranch,
+          description: result.meta.description,
+          structure: buildStructureSummary(result.files).slice(0, 6_000),
+          paths: selected.map((f) => f.path),
+        },
+      });
+      if (run !== analysisRun.current) return; // a newer repo was submitted
+
+      if (res.status === "ok") {
+        setAiState({ phase: "done", analysis: res.analysis });
+      } else if (res.status === "no_api_key") {
+        setAiState({ phase: "no_key" });
+      } else {
+        setAiState({ phase: "error", message: res.message });
+      }
+    } catch (err) {
+      if (run !== analysisRun.current) return;
+      const message = err instanceof Error ? err.message : "Analysis failed";
+      setAiState({ phase: "error", message });
+    }
+  };
 
   const handleSubmit = async (url: string) => {
     setLoading(true);
@@ -46,6 +91,7 @@ function Index() {
       const result = await fetchRepo(url);
       setData(result);
       toast.success(`Loaded ${result.meta.owner}/${result.meta.name}`);
+      void startAnalysis(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to load repository";
       toast.error(msg);
@@ -91,7 +137,9 @@ function Index() {
               </Panel>
 
               <Panel title="Codebase Brief">
-                <CodebaseBrief meta={data.meta} files={data.files} />
+                <ScrollArea className="h-[calc(100vh-320px)] min-h-[400px] pr-2">
+                  <BriefPanel aiState={aiState} data={data} />
+                </ScrollArea>
               </Panel>
 
               <Panel title="Start Here">
@@ -103,6 +151,37 @@ function Index() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+function BriefPanel({ aiState, data }: { aiState: AiState; data: FetchRepoResult }) {
+  if (aiState.phase === "done") {
+    return <AiBrief analysis={aiState.analysis} />;
+  }
+
+  return (
+    <div className="space-y-4">
+      {aiState.phase === "loading" && (
+        <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground/80">
+          <Loader2 className="size-3.5 animate-spin text-primary" />
+          Generating AI analysis… reading key files and building the onboarding guide.
+        </div>
+      )}
+      {aiState.phase === "no_key" && (
+        <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          <Sparkles className="size-3.5" />
+          Add <code className="rounded bg-muted px-1 font-mono">GEMINI_API_KEY</code> to your .env
+          to enable AI analysis. Showing heuristic brief.
+        </div>
+      )}
+      {aiState.phase === "error" && (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-foreground/80">
+          <TriangleAlert className="size-3.5 text-destructive" />
+          AI analysis failed: {aiState.message}. Showing heuristic brief.
+        </div>
+      )}
+      <CodebaseBrief meta={data.meta} files={data.files} />
     </div>
   );
 }
@@ -141,7 +220,11 @@ function PlaceholderPanel({ title, lines }: { title: string; lines: number }) {
       </h2>
       <div className="space-y-2">
         {Array.from({ length: lines }).map((_, i) => (
-          <div key={i} className="h-4 w-full animate-pulse rounded bg-muted/50" style={{ width: `${50 + ((i * 37) % 45)}%` }} />
+          <div
+            key={i}
+            className="h-4 w-full animate-pulse rounded bg-muted/50"
+            style={{ width: `${50 + ((i * 37) % 45)}%` }}
+          />
         ))}
       </div>
     </section>

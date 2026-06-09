@@ -11,13 +11,7 @@ const IGNORED_PATTERNS = [
   ".output/",
 ];
 
-const IGNORED_FILES = [
-  "package-lock.json",
-  "pnpm-lock.yaml",
-  "yarn.lock",
-  "bun.lock",
-  "bun.lockb",
-];
+const IGNORED_FILES = ["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock", "bun.lockb"];
 
 export function shouldIgnoreFile(path: string): boolean {
   if (IGNORED_PATTERNS.some((p) => path.includes(p))) return true;

@@ -39,11 +39,18 @@ export function classifyFile(path: string): FileClassification {
     score += 10;
     role = "api";
     reason = "Backend API entrypoint";
-  } else if (/^(server|index|main)\.(t|j)sx?$/.test(basename) && (lower.includes("/server") || lower.includes("/backend") || lower.includes("/api"))) {
+  } else if (
+    /^(server|index|main)\.(t|j)sx?$/.test(basename) &&
+    (lower.includes("/server") || lower.includes("/backend") || lower.includes("/api"))
+  ) {
     score += 9;
     role = "api";
     reason = "Backend server entrypoint";
-  } else if (lower.includes("/routes/") || lower.includes("/api/") || lower.includes("/controllers/")) {
+  } else if (
+    lower.includes("/routes/") ||
+    lower.includes("/api/") ||
+    lower.includes("/controllers/")
+  ) {
     score += 5;
     role = "api";
     reason = "HTTP route or controller";
@@ -100,7 +107,11 @@ export function classifyFile(path: string): FileClassification {
     score += 5;
     role = "config";
     reason = "Dependencies and npm scripts";
-  } else if (basename === "pyproject.toml" || basename === "requirements.txt" || basename === "pipfile") {
+  } else if (
+    basename === "pyproject.toml" ||
+    basename === "requirements.txt" ||
+    basename === "pipfile"
+  ) {
     score += 5;
     role = "config";
     reason = "Python dependencies";

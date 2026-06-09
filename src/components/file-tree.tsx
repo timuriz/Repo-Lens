@@ -17,7 +17,15 @@ export function FileTree({ root }: Props) {
   );
 }
 
-function TreeItem({ node, depth, defaultOpen = false }: { node: TreeNode; depth: number; defaultOpen?: boolean }) {
+function TreeItem({
+  node,
+  depth,
+  defaultOpen = false,
+}: {
+  node: TreeNode;
+  depth: number;
+  defaultOpen?: boolean;
+}) {
   const [open, setOpen] = useState(defaultOpen && depth < 1);
 
   if (node.type === "dir") {
@@ -29,7 +37,12 @@ function TreeItem({ node, depth, defaultOpen = false }: { node: TreeNode; depth:
           className="flex w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left hover:bg-accent"
           style={{ paddingLeft: 6 + depth * 12 }}
         >
-          <ChevronRight className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
+          <ChevronRight
+            className={cn(
+              "size-3.5 shrink-0 text-muted-foreground transition-transform",
+              open && "rotate-90",
+            )}
+          />
           {open ? (
             <FolderOpen className="size-4 shrink-0 text-primary/70" />
           ) : (
