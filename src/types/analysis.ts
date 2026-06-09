@@ -1,19 +1,33 @@
 export interface AnalysisEntryPoint {
   path: string;
-  why: string;
+  role: string;
+  reason: string;
 }
 
 export interface AnalysisModule {
   name: string;
   purpose: string;
   files: string[];
-  risks: string[];
 }
 
 export interface AnalysisStartStep {
   step: number;
   path: string;
   reason: string;
+}
+
+export type RiskSeverity = "low" | "medium" | "high";
+export type RiskKind = "confirmed" | "inferred";
+export type RiskConfidence = "low" | "medium" | "high";
+
+export interface AnalysisRisk {
+  severity: RiskSeverity;
+  kind: RiskKind;
+  confidence: RiskConfidence;
+  path: string;
+  issue: string;
+  recommendation: string;
+  evidence: string;
 }
 
 /** Graph edge between modules — feeds the React Flow map in a later phase. */
@@ -29,5 +43,14 @@ export interface RepoAnalysis {
   entryPoints: AnalysisEntryPoint[];
   modules: AnalysisModule[];
   startHere: AnalysisStartStep[];
+  risks: AnalysisRisk[];
   edges: AnalysisEdge[];
+}
+
+export interface StartHereGroup {
+  type: "docs" | "code";
+  step: number;
+  label: string;
+  paths: string[];
+  reason?: string;
 }

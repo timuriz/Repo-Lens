@@ -6,8 +6,10 @@ import { toast, Toaster } from "sonner";
 import { RepoInput } from "@/components/repo-input";
 import { FileTree } from "@/components/file-tree";
 import { ImportantFiles } from "@/components/important-files";
+import { StartHereList } from "@/components/start-here-list";
+import { FilePreviewDrawer } from "@/components/file-preview-drawer";
 import { AiOverviewPlaceholder } from "@/components/ai-overview-placeholder";
-import { AiBrief } from "@/components/ai-brief";
+import { AiAnalysisPanel } from "@/components/ai-brief";
 import { AiErrorBanner, AiNoKeyBanner } from "@/components/ai-status-banner";
 import { CodebaseBrief } from "@/components/codebase-brief";
 import { RepoHeader } from "@/components/repo-header";
@@ -23,7 +25,7 @@ import type { RepoAnalysis } from "@/types/analysis";
 type AiState =
   | { phase: "idle" }
   | { phase: "loading" }
-  | { phase: "done"; analysis: RepoAnalysis }
+  | { phase: "done"; analysis: RepoAnalysis; sources: Record<string, string> }
   | { phase: "no_key" }
   | { phase: "error"; error: FriendlyAiError };
 
@@ -51,9 +53,12 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FetchRepoResult | null>(null);
   const [aiState, setAiState] = useState<AiState>({ phase: "idle" });
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const analysisRun = useRef(0);
 
   const tree = useMemo(() => (data ? buildTree(data.files) : null), [data]);
+
+  const handleFileSelect = (path: string) => setSelectedPath(path);
 
   const startAnalysis = async (result: FetchRepoResult) => {
     const run = ++analysisRun.current;
@@ -74,7 +79,7 @@ function Index() {
       if (run !== analysisRun.current) return; // a newer repo was submitted
 
       if (res.status === "ok") {
-        setAiState({ phase: "done", analysis: res.analysis });
+        setAiState({ phase: "done", analysis: res.analysis, sources: res.sources });
       } else if (res.status === "no_api_key") {
         setAiState({ phase: "no_key" });
       } else {
@@ -91,6 +96,7 @@ function Index() {
     try {
       const result = await fetchRepo(url);
       setData(result);
+      setSelectedPath(null);
       toast.success(`Loaded ${result.meta.owner}/${result.meta.name}`);
       void startAnalysis(result);
     } catch (err) {
@@ -133,7 +139,11 @@ function Index() {
             <div className="grid gap-4 md:grid-cols-[240px_1fr_280px] lg:grid-cols-[280px_1fr_320px]">
               <Panel title="File Tree">
                 <ScrollArea className="h-[calc(100vh-320px)] min-h-[400px] pr-2">
-                  <FileTree root={tree} />
+                  <FileTree
+                    root={tree}
+                    selectedPath={selectedPath}
+                    onFileSelect={handleFileSelect}
+                  />
                 </ScrollArea>
               </Panel>
 
@@ -143,16 +153,35 @@ function Index() {
                     aiState={aiState}
                     data={data}
                     onRetry={() => void startAnalysis(data)}
+                    onFileSelect={handleFileSelect}
                   />
                 </ScrollArea>
               </Panel>
 
               <Panel title="Start Here">
                 <ScrollArea className="h-[calc(100vh-320px)] min-h-[400px] pr-2">
-                  <ImportantFiles files={data.files} />
+                  {aiState.phase === "done" ? (
+                    <StartHereList
+                      steps={aiState.analysis.startHere}
+                      onFileSelect={handleFileSelect}
+                      compact
+                    />
+                  ) : (
+                    <ImportantFiles files={data.files} />
+                  )}
                 </ScrollArea>
               </Panel>
             </div>
+
+            <FilePreviewDrawer
+              path={selectedPath}
+              onClose={() => setSelectedPath(null)}
+              sources={aiState.phase === "done" ? aiState.sources : {}}
+              analysis={aiState.phase === "done" ? aiState.analysis : null}
+              owner={data.meta.owner}
+              repo={data.meta.name}
+              branch={data.meta.defaultBranch}
+            />
           </div>
         )}
       </main>
@@ -164,13 +193,21 @@ function BriefPanel({
   aiState,
   data,
   onRetry,
+  onFileSelect,
 }: {
   aiState: AiState;
   data: FetchRepoResult;
   onRetry: () => void;
+  onFileSelect: (path: string) => void;
 }) {
   if (aiState.phase === "done") {
-    return <AiBrief analysis={aiState.analysis} />;
+    return (
+      <AiAnalysisPanel
+        analysis={aiState.analysis}
+        fileCount={data.files.length}
+        onFileSelect={onFileSelect}
+      />
+    );
   }
 
   return (

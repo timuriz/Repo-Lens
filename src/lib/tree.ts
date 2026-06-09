@@ -26,6 +26,12 @@ export function buildTree(files: RepoFile[]): TreeNode {
   return root;
 }
 
+/** Ancestor directory paths for a file path, e.g. "a/b/c.ts" → ["a", "a/b"]. */
+export function getAncestorPaths(path: string): string[] {
+  const parts = path.split("/");
+  return parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join("/"));
+}
+
 function sortNode(node: TreeNode) {
   if (!node.children) return;
   node.children.sort((a, b) => {
