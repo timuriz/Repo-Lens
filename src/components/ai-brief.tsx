@@ -1,12 +1,4 @@
-import {
-  Sparkles,
-  FileText,
-  Boxes,
-  Compass,
-  LogIn,
-  ShieldAlert,
-  Layers,
-} from "lucide-react";
+import { Sparkles, FileText, Boxes, Compass, LogIn, ShieldAlert, Layers } from "lucide-react";
 
 import type { RepoAnalysis } from "@/types/analysis";
 
