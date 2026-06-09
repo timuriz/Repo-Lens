@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { ArrowRight, Compass, FileText, Layers, LogIn, Sparkles } from "lucide-react";
 
-import type { AnalysisRisk, RepoAnalysis } from "@/types/analysis";
+import type { RepoAnalysis } from "@/types/analysis";
+import { countStartHereGroups } from "@/lib/start-here";
 import { FileRef } from "@/components/file-ref";
 import { AiModulesPanel } from "@/components/ai-modules-panel";
 import { AiRisksPanel, RiskCard } from "@/components/ai-risks-panel";
+import { sortRisksBySeverity } from "@/lib/risk-utils";
+import { StartHereList } from "@/components/start-here-list";
 import {
   Accordion,
   AccordionContent,
@@ -16,17 +19,25 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   analysis: RepoAnalysis;
+  fileCount: number;
   onFileSelect?: (path: string) => void;
 }
 
-export function AiAnalysisPanel({ analysis, onFileSelect }: Props) {
+export function AiAnalysisPanel({ analysis, fileCount, onFileSelect }: Props) {
   const [tab, setTab] = useState("brief");
+  const startPointCount = countStartHereGroups(analysis.startHere);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        <Sparkles className="size-3.5 text-primary" />
-        AI analysis · Gemini
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <Sparkles className="size-3.5 text-primary" />
+          AI analysis · Gemini
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {fileCount} files · {analysis.modules.length} modules · {analysis.risks.length} risks ·{" "}
+          {startPointCount} start points
+        </p>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -69,12 +80,6 @@ export function AiAnalysisPanel({ analysis, onFileSelect }: Props) {
 
 const ARCHITECTURE_CLAMP = 280;
 
-const SEVERITY_RANK: Record<AnalysisRisk["severity"], number> = { high: 0, medium: 1, low: 2 };
-
-function sortRisksBySeverity(risks: AnalysisRisk[]): AnalysisRisk[] {
-  return [...risks].sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
-}
-
 function BriefTab({
   analysis,
   onFileSelect,
@@ -116,17 +121,7 @@ function BriefTab({
 
       {analysis.startHere.length > 0 && (
         <Section icon={<Compass className="size-4" />} title="Start here">
-          <ol className="space-y-1.5">
-            {[...analysis.startHere]
-              .sort((a, b) => a.step - b.step)
-              .map((s) => (
-                <li key={`${s.step}-${s.path}`} className="text-sm">
-                  <span className="text-muted-foreground">{s.step}. </span>
-                  <FileRef path={s.path} onSelect={onFileSelect} />
-                  <span className="text-muted-foreground"> — {s.reason}</span>
-                </li>
-              ))}
-          </ol>
+          <StartHereList steps={analysis.startHere} onFileSelect={onFileSelect} />
         </Section>
       )}
 
