@@ -1,6 +1,7 @@
 import { ShieldAlert, ShieldCheck } from "lucide-react";
 
 import type { AnalysisRisk, RiskConfidence, RiskKind, RiskSeverity } from "@/types/analysis";
+import { sortRisksBySeverity } from "@/lib/risk-utils";
 import { FileRef } from "@/components/file-ref";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -41,7 +42,7 @@ const KIND_SECTIONS: { kind: RiskKind; title: string; muted?: boolean }[] = [
   { kind: "inferred", title: "Inferred risks", muted: true },
 ];
 
-import { sortRisksBySeverity } from "@/lib/risk-utils";({ risks, onFileSelect }: Props) {
+export function AiRisksPanel({ risks, onFileSelect }: Props) {
   if (risks.length === 0) {
     return (
       <div className="flex items-center gap-2.5 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-3">
