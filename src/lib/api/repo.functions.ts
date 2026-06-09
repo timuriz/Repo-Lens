@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { fetchFileContents } from "../github.server";
 import { generateAnalysis } from "../ai.server";
+import { toFriendlyAiError, type FriendlyAiError } from "../ai-errors";
 import type { RepoAnalysis } from "@/types/analysis";
 
 const inputSchema = z.object({
@@ -18,7 +19,7 @@ const inputSchema = z.object({
 export type AnalyzeRepoResult =
   | { status: "ok"; analysis: RepoAnalysis }
   | { status: "no_api_key" }
-  | { status: "error"; message: string };
+  | { status: "error"; error: FriendlyAiError };
 
 export const analyzeRepo = createServerFn({ method: "POST" })
   .validator(inputSchema)
@@ -29,7 +30,14 @@ export const analyzeRepo = createServerFn({ method: "POST" })
     try {
       const files = await fetchFileContents(data.owner, data.name, data.branch, data.paths);
       if (files.length === 0) {
-        return { status: "error", message: "Could not download any files from the repository" };
+        return {
+          status: "error",
+          error: {
+            kind: "fatal",
+            title: "Could not read files",
+            message: "No file contents could be downloaded from this repository.",
+          },
+        };
       }
 
       const analysis = await generateAnalysis(apiKey, {
@@ -42,7 +50,6 @@ export const analyzeRepo = createServerFn({ method: "POST" })
       return { status: "ok", analysis };
     } catch (err) {
       console.error("analyzeRepo failed:", err);
-      const message = err instanceof Error ? err.message : "Analysis failed";
-      return { status: "error", message };
+      return { status: "error", error: toFriendlyAiError(err) };
     }
   });
