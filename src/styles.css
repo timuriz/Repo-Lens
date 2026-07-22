@@ -142,3 +142,53 @@
     color: var(--color-foreground);
   }
 }
+
+/* Shiki file preview — VS Code-like gutter + themed code */
+.repolens-code-wrap pre {
+  margin: 0;
+  padding: 0.75rem 0;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.75rem;
+  line-height: 1.65;
+  background: transparent !important;
+}
+
+.repolens-code-wrap code {
+  display: grid;
+  counter-reset: line;
+}
+
+.repolens-code-wrap .line {
+  display: inline-block;
+  width: 100%;
+  padding-right: 1rem;
+  padding-left: 0;
+}
+
+.repolens-code-wrap .line::before {
+  content: attr(data-line);
+  display: inline-block;
+  width: 2.75rem;
+  margin-right: 1rem;
+  padding-right: 0.75rem;
+  text-align: right;
+  color: oklch(0.55 0.02 260 / 0.55);
+  user-select: none;
+  border-right: 1px solid oklch(0.7 0.02 260 / 0.25);
+}
+
+.dark .repolens-code-wrap .line::before {
+  color: oklch(0.7 0.02 260 / 0.4);
+  border-right-color: oklch(1 0 0 / 0.1);
+}
+
+.repolens-code-wrap {
+  background: #f6f8fa;
+}
+
+.dark .repolens-code-wrap {
+  background: #0d1117;
+}
+

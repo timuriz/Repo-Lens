@@ -1,0 +1,96 @@
+import { useEffect, useState } from "react";
+import { codeToHtml } from "shiki";
+
+import { languageFromPath, languageLabel } from "@/lib/language";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  code: string;
+  path: string;
+  className?: string;
+}
+
+function isDarkMode(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.documentElement.classList.contains("dark");
+}
+
+function PlainFallback({ code, className }: { code: string; className?: string }) {
+  return (
+    <pre
+      className={cn(
+        "overflow-x-auto rounded-md border bg-[#f6f8fa] p-3 font-mono text-xs leading-relaxed dark:bg-[#0d1117]",
+        className,
+      )}
+    >
+      <code>
+        {code.split("\n").map((line, i) => (
+          <span key={i} className="block">
+            <span className="mr-4 inline-block w-8 select-none text-right text-muted-foreground/50">
+              {i + 1}
+            </span>
+            {line || "\n"}
+          </span>
+        ))}
+      </code>
+    </pre>
+  );
+}
+
+export function CodeBlock({ code, path, className }: Props) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const lang = languageFromPath(path);
+
+  useEffect(() => {
+    let cancelled = false;
+    setHtml(null);
+    setFailed(false);
+
+    const theme = isDarkMode() ? "github-dark" : "github-light";
+
+    void codeToHtml(code, {
+      lang: lang ?? "plaintext",
+      theme,
+      transformers: [
+        {
+          line(node, line) {
+            node.properties["data-line"] = String(line);
+          },
+        },
+      ],
+    })
+      .then((result) => {
+        if (!cancelled) setHtml(result);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [code, lang]);
+
+  if (failed) return <PlainFallback code={code} className={className} />;
+
+  if (!html) {
+    return (
+      <div
+        className={cn(
+          "rounded-md border bg-[#f6f8fa] px-3 py-4 text-xs text-muted-foreground dark:bg-[#0d1117]",
+          className,
+        )}
+      >
+        Highlighting {languageLabel(path)}…
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn("repolens-code-wrap overflow-x-auto rounded-md border", className)}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
