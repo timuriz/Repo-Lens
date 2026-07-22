@@ -37,6 +37,17 @@ export interface AnalysisEdge {
   label: string;
 }
 
+export type TaskDifficulty = "easy" | "medium";
+
+/** AI-suggested first contribution, grounded in analyzed files. */
+export interface AnalysisTask {
+  title: string;
+  difficulty: TaskDifficulty;
+  paths: string[];
+  why: string;
+  evidence: string;
+}
+
 export interface RepoAnalysis {
   summary: string;
   architecture: string;
@@ -45,6 +56,7 @@ export interface RepoAnalysis {
   startHere: AnalysisStartStep[];
   risks: AnalysisRisk[];
   edges: AnalysisEdge[];
+  goodFirstTasks: AnalysisTask[];
 }
 
 export interface StartHereGroup {

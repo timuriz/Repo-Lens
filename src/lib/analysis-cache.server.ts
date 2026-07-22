@@ -1,4 +1,9 @@
 import type { RepoAnalysis } from "@/types/analysis";
+import {
+  clearStoredAnalyses,
+  readStoredAnalysis,
+  writeStoredAnalysis,
+} from "./analysis-store.server";
 
 export interface CachedAnalysis {
   analysis: RepoAnalysis;
@@ -6,6 +11,8 @@ export interface CachedAnalysis {
   analyzedCount: number;
   treeSha: string;
   branch: string;
+  owner: string;
+  name: string;
   cachedAt: number;
 }
 
@@ -22,30 +29,70 @@ export function cacheKey(owner: string, name: string, treeSha: string): string {
   return `${owner.toLowerCase()}/${name.toLowerCase()}@${treeSha}`;
 }
 
-export function getCachedAnalysis(key: string): CachedAnalysis | null {
-  const entry = analysisCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.cachedAt > CACHE_TTL_MS) {
-    analysisCache.delete(key);
-    return null;
-  }
+function touchL1(key: string, entry: CachedAnalysis): void {
   analysisCache.delete(key);
-  analysisCache.set(key, entry);
-  return entry;
-}
-
-export function setCachedAnalysis(key: string, value: Omit<CachedAnalysis, "cachedAt">): void {
   if (analysisCache.size >= MAX_CACHE) {
     const oldest = analysisCache.keys().next().value;
     if (oldest) analysisCache.delete(oldest);
   }
-  analysisCache.set(key, { ...value, cachedAt: Date.now() });
+  analysisCache.set(key, entry);
 }
 
-/** Test helper — clears in-memory stores. */
+export function getCachedAnalysis(key: string): CachedAnalysis | null {
+  // L1: in-memory.
+  const entry = analysisCache.get(key);
+  if (entry) {
+    if (Date.now() - entry.cachedAt > CACHE_TTL_MS) {
+      analysisCache.delete(key);
+    } else {
+      touchL1(key, entry);
+      return entry;
+    }
+  }
+
+  // L2: SQLite. Hydrate L1 on hit.
+  try {
+    const stored = readStoredAnalysis(key, CACHE_TTL_MS);
+    if (stored) {
+      const hydrated: CachedAnalysis = { ...stored };
+      touchL1(key, hydrated);
+      return hydrated;
+    }
+  } catch (err) {
+    console.error("SQLite cache read failed:", err);
+  }
+
+  return null;
+}
+
+export function setCachedAnalysis(key: string, value: Omit<CachedAnalysis, "cachedAt">): void {
+  const entry: CachedAnalysis = { ...value, cachedAt: Date.now() };
+  touchL1(key, entry);
+
+  // L2: persist. Non-fatal on failure.
+  try {
+    writeStoredAnalysis(key, value.owner, value.name, {
+      analysis: value.analysis,
+      sources: value.sources,
+      analyzedCount: value.analyzedCount,
+      treeSha: value.treeSha,
+      branch: value.branch,
+      cachedAt: entry.cachedAt,
+    });
+  } catch (err) {
+    console.error("SQLite cache write failed:", err);
+  }
+}
+
+/** Test helper — clears in-memory and persistent stores. */
 export function resetAnalysisCacheForTests(): void {
   analysisCache.clear();
   rateBuckets.clear();
+  try {
+    clearStoredAnalyses();
+  } catch {
+    // ignore — store may not be initialized in some tests
+  }
 }
 
 export function checkRateLimit(ip: string): { ok: true } | { ok: false; retryAfterMin: number } {

@@ -30,6 +30,17 @@ const analysisSchema = z.object({
     }),
   ),
   edges: z.array(z.object({ from: z.string(), to: z.string(), label: z.string() })),
+  goodFirstTasks: z
+    .array(
+      z.object({
+        title: z.string(),
+        difficulty: z.enum(["easy", "medium"]),
+        paths: z.array(z.string()),
+        why: z.string(),
+        evidence: z.string(),
+      }),
+    )
+    .default([]),
 });
 
 const responseSchema = {
@@ -145,8 +156,48 @@ const responseSchema = {
         required: ["from", "to", "label"],
       },
     },
+    goodFirstTasks: {
+      type: Type.ARRAY,
+      description:
+        "3-6 concrete first contributions a new developer could make, grounded in the provided files.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          title: {
+            type: Type.STRING,
+            description: "Short imperative task, e.g. 'Add loading state to UserProfile'.",
+          },
+          difficulty: {
+            type: Type.STRING,
+            enum: ["easy", "medium"],
+            description: "easy = localized change; medium = touches a couple of files.",
+          },
+          paths: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "1-3 exact file paths from the provided files the task would touch.",
+          },
+          why: { type: Type.STRING, description: "One sentence on the value of this task." },
+          evidence: {
+            type: Type.STRING,
+            description:
+              "Quote or paraphrase from the cited file(s) that motivates the task (missing test, TODO, duplicated logic, etc.).",
+          },
+        },
+        required: ["title", "difficulty", "paths", "why", "evidence"],
+      },
+    },
   },
-  required: ["summary", "architecture", "entryPoints", "modules", "startHere", "risks", "edges"],
+  required: [
+    "summary",
+    "architecture",
+    "entryPoints",
+    "modules",
+    "startHere",
+    "risks",
+    "edges",
+    "goodFirstTasks",
+  ],
 } as const;
 
 const SYSTEM_INSTRUCTION = `You are a senior software engineer writing an onboarding guide for a developer who has never seen this repository.
@@ -167,7 +218,14 @@ Risk rules:
 - kind="inferred" for conclusions from README/docs or project structure (e.g. "app may not be production-ready").
 - "evidence" must quote or paraphrase the supporting text from the file — never leave empty.
 - confidence="high" for direct code observation; "medium" for README/docs; "low" for structural guess.
-- "recommendation" must be one actionable sentence.`;
+- "recommendation" must be one actionable sentence.
+
+Good first tasks rules:
+- Suggest 3-6 realistic first contributions a newcomer could ship.
+- Prefer: fixing confirmed risks, adding missing tests, small UX/DX gaps, resolving TODOs, deduplicating repeated logic.
+- Every task's "paths" MUST be exact file paths from the provided files — never invent paths.
+- "evidence" must quote or paraphrase the file text that motivates the task — never leave empty.
+- difficulty="easy" for a localized single-file change; "medium" for changes spanning a couple of files.`;
 
 export interface AnalysisInput {
   owner: string;
@@ -216,5 +274,9 @@ Produce the onboarding analysis as JSON.`;
   return {
     ...analysis,
     risks: analysis.risks.filter((r) => knownPaths.has(r.path)),
+    // Ground tasks: keep only paths we actually analyzed, and drop tasks left with none.
+    goodFirstTasks: analysis.goodFirstTasks
+      .map((t) => ({ ...t, paths: t.paths.filter((p) => knownPaths.has(p)) }))
+      .filter((t) => t.paths.length > 0),
   };
 }

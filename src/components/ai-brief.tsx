@@ -6,6 +6,7 @@ import { countStartHereGroups } from "@/lib/start-here";
 import { FileRef } from "@/components/file-ref";
 import { AiModulesPanel } from "@/components/ai-modules-panel";
 import { AiRisksPanel, RiskCard } from "@/components/ai-risks-panel";
+import { AiContributePanel } from "@/components/ai-contribute-panel";
 import { ArchitectureGraph } from "@/components/architecture-graph";
 import { sortRisksBySeverity } from "@/lib/risk-utils";
 import { StartHereList } from "@/components/start-here-list";
@@ -25,6 +26,7 @@ interface Props {
   fromCache?: boolean;
   branch?: string;
   treeSha?: string;
+  repoUrl?: string;
   onFileSelect?: (path: string) => void;
 }
 
@@ -35,11 +37,14 @@ export function AiAnalysisPanel({
   fromCache,
   branch,
   treeSha,
+  repoUrl,
   onFileSelect,
 }: Props) {
   const [tab, setTab] = useState("brief");
   const startPointCount = countStartHereGroups(analysis.startHere);
+  const tasks = analysis.goodFirstTasks ?? [];
   const shortSha = treeSha?.slice(0, 7);
+  const treeUrl = repoUrl && treeSha ? `${repoUrl}/tree/${treeSha}` : undefined;
 
   return (
     <div className="space-y-4">
@@ -69,7 +74,20 @@ export function AiAnalysisPanel({
             {shortSha ? (
               <>
                 {" · "}
-                tree <code className="rounded bg-muted px-1 font-mono">{shortSha}</code>
+                tree{" "}
+                {treeUrl ? (
+                  <a
+                    href={treeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded bg-muted px-1 font-mono hover:text-primary hover:underline"
+                    title="View this tree on GitHub"
+                  >
+                    {shortSha}
+                  </a>
+                ) : (
+                  <code className="rounded bg-muted px-1 font-mono">{shortSha}</code>
+                )}
               </>
             ) : null}
           </p>
@@ -95,6 +113,14 @@ export function AiAnalysisPanel({
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="contribute" className="text-xs">
+            Contribute
+            {tasks.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold text-primary">
+                {tasks.length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="brief" className="mt-4">
@@ -115,6 +141,10 @@ export function AiAnalysisPanel({
 
         <TabsContent value="risks" className="mt-4">
           <AiRisksPanel risks={analysis.risks} onFileSelect={onFileSelect} />
+        </TabsContent>
+
+        <TabsContent value="contribute" className="mt-4">
+          <AiContributePanel tasks={tasks} onFileSelect={onFileSelect} />
         </TabsContent>
       </Tabs>
     </div>

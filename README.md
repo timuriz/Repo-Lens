@@ -27,12 +27,13 @@ Designed for the moment you open someone else’s repo and think: *where do I ev
 - **Start Here path** — ordered reading route (docs grouped, then real code)
 - **Module cards** — purpose + important files as clickable chips
 - **Risks / code smells** — severity, evidence, confidence, confirmed vs inferred
+- **Contribution Finder** — grounded "good first tasks" with difficulty, target files, and evidence
 - **Interactive file navigator** — select a path → highlight in tree → syntax-highlighted preview (Shiki)
 - **Progressive UX** — file tree loads immediately; AI fills the center panel when ready
 - **Honest coverage** — shows *N files analyzed* vs total repo size
-- **Shareable links** — `/?repo=owner/name` (optional `&branch=…`)
+- **Shareable links** — `/?repo=owner/name` (optional `&branch=…`) with a one-click Copy button
 - **Architecture map** — React Flow graph from AI `edges`
-- **Cache + rate limit** — keyed by tree SHA; demo abuse is limited
+- **Persistent cache + rate limit** — SQLite-backed, keyed by tree SHA; survives restarts, demo abuse is limited
 
 ---
 
@@ -93,7 +94,12 @@ npm run preview
 ### Test
 
 ```bash
+# Unit tests (Vitest)
 npm test
+
+# End-to-end smoke tests (Playwright) — first run only:
+npx playwright install chromium
+npm run test:e2e
 ```
 
 ---
@@ -113,10 +119,10 @@ Show File Tree + heuristic brief (instant)
 Fetch top ~25 file contents (raw.githubusercontent.com)
     │
     ▼
-Gemini structured JSON analysis (cached by tree SHA)
+Gemini structured JSON analysis (cached by tree SHA, memory + SQLite)
     │
     ▼
-Brief / Modules / Map / Risks + grounded file references
+Brief / Modules / Map / Risks / Contribute + grounded file references
 ```
 
 1. **Tree & scoring** — server-side GitHub API (optional `GITHUB_TOKEN`); ignores `node_modules`, lockfiles, build dirs.
@@ -134,7 +140,8 @@ Brief / Modules / Map / Risks + grounded file references
 | UI | Tailwind CSS 4, shadcn/ui, React Flow |
 | AI | Google Gemini (`gemini-2.5-flash`), structured JSON output |
 | Highlighting | Shiki (limited language set) |
-| Data | In-memory analysis cache (per `owner/repo@treeSha`) |
+| Data | Two-tier analysis cache: in-memory L1 + SQLite L2 (`node:sqlite`), keyed by `owner/repo@treeSha` |
+| Testing | Vitest (unit) + Playwright (e2e smoke) |
 
 ---
 
@@ -144,6 +151,7 @@ Brief / Modules / Map / Risks + grounded file references
 | --- | --- | --- |
 | `GEMINI_API_KEY` | Yes (for AI) | Key from [Google AI Studio](https://aistudio.google.com/apikey) |
 | `GITHUB_TOKEN` | No | Raises GitHub API limits for tree fetch |
+| `ANALYSIS_CACHE_PATH` | No | Override SQLite cache location (default `data/analysis-cache.sqlite`) |
 
 Without a Gemini key, RepoLens still loads the tree and heuristic brief; AI panels show a clear setup message.
 
@@ -154,7 +162,7 @@ Without a Gemini key, RepoLens still loads the tree and heuristic brief; AI pane
 - Optimized for **public** GitHub repositories
 - AI reads a **selected subset** of important files (~25), not every file in large monorepos
 - Best signal on **TypeScript / JavaScript / Python / Swift / Kotlin**-style layouts
-- Analysis cache is **in-memory** (resets on server restart)
+- Analysis cache is a **local SQLite file** (single-instance; swap for KV/D1 to scale horizontally)
 - Demo rate limit: limited analyses per IP per hour (cache hits don’t count)
 - Very large repos may return a **truncated** GitHub tree — surfaced clearly in the UI
 
@@ -165,9 +173,10 @@ Without a Gemini key, RepoLens still loads the tree and heuristic brief; AI pane
 - [x] Shareable analysis URLs (`?repo=owner/name`)
 - [x] Architecture graph (React Flow) from `edges`
 - [x] Cache keyed by tree SHA
-- [ ] Contribution finder (“good first tasks”)
+- [x] Persistent cache (SQLite)
+- [x] Contribution finder (“good first tasks”)
+- [x] E2E smoke tests (Playwright)
 - [ ] Ask-the-repo chat grounded in indexed chunks
-- [ ] Persistent cache (SQLite / KV)
 - [ ] Private repos via GitHub OAuth
 
 ---

@@ -281,6 +281,7 @@ function BriefPanel({
         fromCache={aiState.fromCache}
         branch={data.meta.branch}
         treeSha={data.meta.treeSha}
+        repoUrl={data.meta.url}
         onFileSelect={onFileSelect}
       />
     );

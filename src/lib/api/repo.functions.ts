@@ -147,6 +147,8 @@ export const analyzeRepo = createServerFn({ method: "POST" })
         analyzedCount,
         treeSha: data.treeSha,
         branch: data.branch,
+        owner: data.owner,
+        name: data.name,
       });
 
       return {
