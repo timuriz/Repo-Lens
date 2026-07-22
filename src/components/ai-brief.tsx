@@ -20,10 +20,18 @@ import { cn } from "@/lib/utils";
 interface Props {
   analysis: RepoAnalysis;
   fileCount: number;
+  analyzedCount: number;
+  fromCache?: boolean;
   onFileSelect?: (path: string) => void;
 }
 
-export function AiAnalysisPanel({ analysis, fileCount, onFileSelect }: Props) {
+export function AiAnalysisPanel({
+  analysis,
+  fileCount,
+  analyzedCount,
+  fromCache,
+  onFileSelect,
+}: Props) {
   const [tab, setTab] = useState("brief");
   const startPointCount = countStartHereGroups(analysis.startHere);
 
@@ -33,10 +41,15 @@ export function AiAnalysisPanel({ analysis, fileCount, onFileSelect }: Props) {
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           <Sparkles className="size-3.5 text-primary" />
           AI analysis · Gemini
+          {fromCache && (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal normal-case tracking-normal">
+              cached
+            </span>
+          )}
         </div>
         <p className="text-xs text-muted-foreground">
-          {fileCount} files · {analysis.modules.length} modules · {analysis.risks.length} risks ·{" "}
-          {startPointCount} start points
+          {fileCount} files · {analyzedCount} analyzed · {analysis.modules.length} modules ·{" "}
+          {analysis.risks.length} risks · {startPointCount} start points
         </p>
       </div>
 
