@@ -59,7 +59,7 @@ export function CodebaseBrief({ meta, files }: Props) {
     <div className="space-y-5">
       <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
         <Sparkles className="size-3.5 text-primary" />
-        Heuristic brief · deeper AI analysis coming soon
+        Heuristic brief · waiting for AI analysis
       </div>
 
       <Section icon={<FileText className="size-4" />} title="What this repo does">
