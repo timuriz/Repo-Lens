@@ -25,7 +25,13 @@ import type { RepoAnalysis } from "@/types/analysis";
 type AiState =
   | { phase: "idle" }
   | { phase: "loading" }
-  | { phase: "done"; analysis: RepoAnalysis; sources: Record<string, string> }
+  | {
+      phase: "done";
+      analysis: RepoAnalysis;
+      sources: Record<string, string>;
+      analyzedCount: number;
+      fromCache: boolean;
+    }
   | { phase: "no_key" }
   | { phase: "error"; error: FriendlyAiError };
 
@@ -79,7 +85,13 @@ function Index() {
       if (run !== analysisRun.current) return; // a newer repo was submitted
 
       if (res.status === "ok") {
-        setAiState({ phase: "done", analysis: res.analysis, sources: res.sources });
+        setAiState({
+          phase: "done",
+          analysis: res.analysis,
+          sources: res.sources,
+          analyzedCount: res.analyzedCount,
+          fromCache: res.fromCache,
+        });
       } else if (res.status === "no_api_key") {
         setAiState({ phase: "no_key" });
       } else {
@@ -167,7 +179,11 @@ function Index() {
                       compact
                     />
                   ) : (
-                    <ImportantFiles files={data.files} />
+                    <ImportantFiles
+                      files={data.files}
+                      loading={aiState.phase === "loading"}
+                      onFileSelect={handleFileSelect}
+                    />
                   )}
                 </ScrollArea>
               </Panel>
@@ -200,11 +216,15 @@ function BriefPanel({
   onRetry: () => void;
   onFileSelect: (path: string) => void;
 }) {
+  const selectedCount = useMemo(() => selectFilesForAnalysis(data.files).length, [data.files]);
+
   if (aiState.phase === "done") {
     return (
       <AiAnalysisPanel
         analysis={aiState.analysis}
         fileCount={data.files.length}
+        analyzedCount={aiState.analyzedCount}
+        fromCache={aiState.fromCache}
         onFileSelect={onFileSelect}
       />
     );
@@ -215,7 +235,8 @@ function BriefPanel({
       {aiState.phase === "loading" && (
         <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-3 text-xs text-foreground/80">
           <Loader2 className="size-3.5 animate-spin text-primary" />
-          Generating AI analysis… reading key files and building the onboarding guide.
+          Generating AI analysis… reading {selectedCount} key files and building the onboarding
+          guide.
         </div>
       )}
       {aiState.phase === "no_key" && <AiNoKeyBanner />}
