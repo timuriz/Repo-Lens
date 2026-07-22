@@ -11,7 +11,12 @@ export type FileRole =
 export interface RepoMeta {
   owner: string;
   name: string;
+  /** Branch (or ref) that was analyzed. */
+  branch: string;
+  /** Default branch from GitHub metadata (may differ from `branch`). */
   defaultBranch: string;
+  /** Git tree SHA for the loaded recursive tree — used for cache invalidation. */
+  treeSha: string;
   description: string | null;
   stars: number;
   url: string;
@@ -32,4 +37,11 @@ export interface TreeNode {
   size?: number;
   score?: number;
   children?: TreeNode[];
+}
+
+export interface ParsedGitHubRef {
+  owner: string;
+  repo: string;
+  /** Explicit branch/ref from /tree/<ref> or query; undefined → use default branch. */
+  branch?: string;
 }

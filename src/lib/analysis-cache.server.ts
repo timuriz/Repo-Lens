@@ -4,19 +4,22 @@ export interface CachedAnalysis {
   analysis: RepoAnalysis;
   sources: Record<string, string>;
   analyzedCount: number;
+  treeSha: string;
+  branch: string;
   cachedAt: number;
 }
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL_MS = 60 * 60 * 1000;
 const MAX_CACHE = 50;
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-const RATE_LIMIT_MAX = 8; // analyses per IP per hour (cache hits don't count)
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+export const RATE_LIMIT_MAX = 8;
 
 const analysisCache = new Map<string, CachedAnalysis>();
 const rateBuckets = new Map<string, number[]>();
 
-export function cacheKey(owner: string, name: string, branch: string): string {
-  return `${owner.toLowerCase()}/${name.toLowerCase()}@${branch}`;
+/** Cache key pinned to tree SHA so branch updates invalidate automatically. */
+export function cacheKey(owner: string, name: string, treeSha: string): string {
+  return `${owner.toLowerCase()}/${name.toLowerCase()}@${treeSha}`;
 }
 
 export function getCachedAnalysis(key: string): CachedAnalysis | null {
@@ -26,7 +29,6 @@ export function getCachedAnalysis(key: string): CachedAnalysis | null {
     analysisCache.delete(key);
     return null;
   }
-  // LRU touch
   analysisCache.delete(key);
   analysisCache.set(key, entry);
   return entry;
@@ -38,6 +40,12 @@ export function setCachedAnalysis(key: string, value: Omit<CachedAnalysis, "cach
     if (oldest) analysisCache.delete(oldest);
   }
   analysisCache.set(key, { ...value, cachedAt: Date.now() });
+}
+
+/** Test helper — clears in-memory stores. */
+export function resetAnalysisCacheForTests(): void {
+  analysisCache.clear();
+  rateBuckets.clear();
 }
 
 export function checkRateLimit(ip: string): { ok: true } | { ok: false; retryAfterMin: number } {

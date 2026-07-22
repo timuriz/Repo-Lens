@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { codeToHtml } from "shiki";
+import { createHighlighter, type Highlighter } from "shiki";
 
 import { languageFromPath, languageLabel } from "@/lib/language";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,39 @@ interface Props {
   code: string;
   path: string;
   className?: string;
+}
+
+/** Keep the highlighter small — only langs RepoLens commonly analyzes. */
+const SUPPORTED_LANGS = [
+  "typescript",
+  "tsx",
+  "javascript",
+  "jsx",
+  "python",
+  "swift",
+  "kotlin",
+  "go",
+  "rust",
+  "java",
+  "json",
+  "yaml",
+  "toml",
+  "markdown",
+  "html",
+  "css",
+  "bash",
+  "sql",
+  "plaintext",
+] as const;
+
+let highlighterPromise: Promise<Highlighter> | null = null;
+
+function getHighlighter(): Promise<Highlighter> {
+  highlighterPromise ??= createHighlighter({
+    themes: ["github-light", "github-dark"],
+    langs: [...SUPPORTED_LANGS],
+  });
+  return highlighterPromise;
 }
 
 function isDarkMode(): boolean {
@@ -40,7 +73,9 @@ function PlainFallback({ code, className }: { code: string; className?: string }
 export function CodeBlock({ code, path, className }: Props) {
   const [html, setHtml] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  const lang = languageFromPath(path);
+  const detected = languageFromPath(path);
+  const lang =
+    detected && (SUPPORTED_LANGS as readonly string[]).includes(detected) ? detected : "plaintext";
 
   useEffect(() => {
     let cancelled = false;
@@ -49,19 +84,21 @@ export function CodeBlock({ code, path, className }: Props) {
 
     const theme = isDarkMode() ? "github-dark" : "github-light";
 
-    void codeToHtml(code, {
-      lang: lang ?? "plaintext",
-      theme,
-      transformers: [
-        {
-          line(node, line) {
-            node.properties["data-line"] = String(line);
-          },
-        },
-      ],
-    })
-      .then((result) => {
-        if (!cancelled) setHtml(result);
+    void getHighlighter()
+      .then((highlighter) => {
+        if (cancelled) return;
+        const result = highlighter.codeToHtml(code, {
+          lang,
+          theme,
+          transformers: [
+            {
+              line(node, line) {
+                node.properties["data-line"] = String(line);
+              },
+            },
+          ],
+        });
+        setHtml(result);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);

@@ -30,7 +30,26 @@ Designed for the moment you open someone else’s repo and think: *where do I ev
 - **Interactive file navigator** — select a path → highlight in tree → syntax-highlighted preview (Shiki)
 - **Progressive UX** — file tree loads immediately; AI fills the center panel when ready
 - **Honest coverage** — shows *N files analyzed* vs total repo size
-- **Cache + rate limit** — repeated analyses of the same repo are fast; demo abuse is limited
+- **Shareable links** — `/?repo=owner/name` (optional `&branch=…`)
+- **Architecture map** — React Flow graph from AI `edges`
+- **Cache + rate limit** — keyed by tree SHA; demo abuse is limited
+
+---
+
+## Share a repo
+
+After analyzing, the URL updates to a shareable form:
+
+```text
+https://your-host/?repo=expressjs/cors
+https://your-host/?repo=owner/repo&branch=develop
+```
+
+You can also paste full GitHub tree URLs:
+
+```text
+https://github.com/owner/repo/tree/feature/foo
+```
 
 ---
 
@@ -44,8 +63,8 @@ Designed for the moment you open someone else’s repo and think: *where do I ev
 ### Setup
 
 ```bash
-git clone https://github.com/<your-username>/repo-lens.git
-cd repo-lens
+git clone https://github.com/your-username/Repo-Lens.git
+cd Repo-Lens
 npm install
 cp .env.example .env
 ```
@@ -71,6 +90,12 @@ npm run build
 npm run preview
 ```
 
+### Test
+
+```bash
+npm test
+```
+
 ---
 
 ## How it works
@@ -79,7 +104,7 @@ npm run preview
 GitHub URL
     │
     ▼
-Fetch tree (GitHub API) → filter noise → path-based importance scoring
+Server tree fetch (GitHub API) → filter noise → path-based importance scoring
     │
     ▼
 Show File Tree + heuristic brief (instant)
@@ -88,15 +113,15 @@ Show File Tree + heuristic brief (instant)
 Fetch top ~25 file contents (raw.githubusercontent.com)
     │
     ▼
-Gemini structured JSON analysis
+Gemini structured JSON analysis (cached by tree SHA)
     │
     ▼
-Brief / Modules / Risks + grounded file references
+Brief / Modules / Map / Risks + grounded file references
 ```
 
-1. **Tree & scoring** — public GitHub API; ignores `node_modules`, lockfiles, build dirs.
+1. **Tree & scoring** — server-side GitHub API (optional `GITHUB_TOKEN`); ignores `node_modules`, lockfiles, build dirs.
 2. **Content fetch** — raw URLs (does not burn API rate limit).
-3. **Structured AI** — Gemini returns typed JSON (summary, modules, start-here, risks with evidence).
+3. **Structured AI** — Gemini returns typed JSON (summary, modules, start-here, risks with evidence, edges).
 4. **Grounding** — risks whose paths weren’t in the analyzed set are dropped; UI links paths to the tree and preview.
 
 ---
@@ -106,10 +131,10 @@ Brief / Modules / Risks + grounded file references
 | Layer | Stack |
 | --- | --- |
 | App | TanStack Start, React 19, TypeScript, Vite |
-| UI | Tailwind CSS 4, shadcn/ui |
+| UI | Tailwind CSS 4, shadcn/ui, React Flow |
 | AI | Google Gemini (`gemini-2.5-flash`), structured JSON output |
-| Highlighting | Shiki (VS Code grammars) |
-| Data | In-memory analysis cache (per `owner/repo@branch`) |
+| Highlighting | Shiki (limited language set) |
+| Data | In-memory analysis cache (per `owner/repo@treeSha`) |
 
 ---
 
@@ -118,10 +143,9 @@ Brief / Modules / Risks + grounded file references
 | Variable | Required | Description |
 | --- | --- | --- |
 | `GEMINI_API_KEY` | Yes (for AI) | Key from [Google AI Studio](https://aistudio.google.com/apikey) |
+| `GITHUB_TOKEN` | No | Raises GitHub API limits for tree fetch |
 
-Without a key, RepoLens still loads the tree and heuristic brief; AI panels show a clear setup message.
-
-Optional: a GitHub token is **not** required for public repos (content is loaded via raw URLs). Useful later if you add private repos or higher API quotas.
+Without a Gemini key, RepoLens still loads the tree and heuristic brief; AI panels show a clear setup message.
 
 ---
 
@@ -129,16 +153,18 @@ Optional: a GitHub token is **not** required for public repos (content is loaded
 
 - Optimized for **public** GitHub repositories
 - AI reads a **selected subset** of important files (~25), not every file in large monorepos
-- Best signal on **TypeScript / JavaScript / Python / Swift / Kotlin**-style layouts (path heuristics + multi-language highlighting)
+- Best signal on **TypeScript / JavaScript / Python / Swift / Kotlin**-style layouts
 - Analysis cache is **in-memory** (resets on server restart)
 - Demo rate limit: limited analyses per IP per hour (cache hits don’t count)
+- Very large repos may return a **truncated** GitHub tree — surfaced clearly in the UI
 
 ---
 
 ## Roadmap
 
-- [ ] Shareable analysis URLs (`?repo=owner/name`)
-- [ ] Architecture graph (React Flow) from existing `edges` data
+- [x] Shareable analysis URLs (`?repo=owner/name`)
+- [x] Architecture graph (React Flow) from `edges`
+- [x] Cache keyed by tree SHA
 - [ ] Contribution finder (“good first tasks”)
 - [ ] Ask-the-repo chat grounded in indexed chunks
 - [ ] Persistent cache (SQLite / KV)
@@ -150,12 +176,11 @@ Optional: a GitHub token is **not** required for public repos (content is loaded
 
 ```text
 src/
-├── components/          # UI: tree, AI panels, risks, file preview
+├── components/          # UI: tree, AI panels, risks, map, file preview
 ├── lib/
-│   ├── api/             # Server functions (analyzeRepo, preview)
+│   ├── api/             # Server functions (loadRepoTree, analyzeRepo, preview)
 │   ├── ai.server.ts     # Gemini structured analysis
-│   ├── github.ts        # Client tree fetch
-│   ├── github.server.ts # Raw file content fetch
+│   ├── github.server.ts # Server tree + raw file fetch
 │   ├── scoring.ts       # Path-based importance
 │   └── start-here.ts    # Doc grouping / onboarding path
 ├── routes/              # TanStack file-based routes
@@ -170,6 +195,7 @@ Issues and PRs welcome. For large changes, open an issue first so we can align o
 
 ```bash
 npm run lint
+npm test
 npm run build
 ```
 

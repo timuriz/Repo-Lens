@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Telescope } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { z } from "zod";
 
 import { RepoInput } from "@/components/repo-input";
 import { FileTree } from "@/components/file-tree";
@@ -15,7 +16,7 @@ import { CodebaseBrief } from "@/components/codebase-brief";
 import { RepoHeader } from "@/components/repo-header";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchRepo, type FetchRepoResult } from "@/lib/github";
+import { fetchRepo, parseGitHubUrl, toGitHubUrl, type FetchRepoResult } from "@/lib/github";
 import { buildTree } from "@/lib/tree";
 import { buildStructureSummary, selectFilesForAnalysis } from "@/lib/select-files";
 import { analyzeRepo } from "@/lib/api/repo.functions";
@@ -35,7 +36,13 @@ type AiState =
   | { phase: "no_key" }
   | { phase: "error"; error: FriendlyAiError };
 
+const searchSchema = z.object({
+  repo: z.string().optional(),
+  branch: z.string().optional(),
+});
+
 export const Route = createFileRoute("/")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: "RepoLens — Understand any GitHub repo" },
@@ -56,15 +63,36 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const navigate = useNavigate({ from: Route.fullPath });
+  const search = Route.useSearch();
+
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FetchRepoResult | null>(null);
   const [aiState, setAiState] = useState<AiState>({ phase: "idle" });
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const analysisRun = useRef(0);
+  const autoLoadedKey = useRef<string | null>(null);
 
   const tree = useMemo(() => (data ? buildTree(data.files) : null), [data]);
 
+  const shareInitialUrl = useMemo(() => {
+    if (!search.repo) return undefined;
+    const [owner, name] = search.repo.split("/");
+    if (!owner || !name) return search.repo;
+    return toGitHubUrl(owner, name, search.branch);
+  }, [search.repo, search.branch]);
+
   const handleFileSelect = (path: string) => setSelectedPath(path);
+
+  const syncShareUrl = (owner: string, name: string, branch: string, defaultBranch: string) => {
+    void navigate({
+      search: {
+        repo: `${owner}/${name}`,
+        branch: branch !== defaultBranch ? branch : undefined,
+      },
+      replace: true,
+    });
+  };
 
   const startAnalysis = async (result: FetchRepoResult) => {
     const run = ++analysisRun.current;
@@ -76,13 +104,14 @@ function Index() {
         data: {
           owner: result.meta.owner,
           name: result.meta.name,
-          branch: result.meta.defaultBranch,
+          branch: result.meta.branch,
+          treeSha: result.meta.treeSha,
           description: result.meta.description,
           structure: buildStructureSummary(result.files).slice(0, 6_000),
           paths: selected.map((f) => f.path),
         },
       });
-      if (run !== analysisRun.current) return; // a newer repo was submitted
+      if (run !== analysisRun.current) return;
 
       if (res.status === "ok") {
         setAiState({
@@ -109,7 +138,13 @@ function Index() {
       const result = await fetchRepo(url);
       setData(result);
       setSelectedPath(null);
-      toast.success(`Loaded ${result.meta.owner}/${result.meta.name}`);
+      syncShareUrl(
+        result.meta.owner,
+        result.meta.name,
+        result.meta.branch,
+        result.meta.defaultBranch,
+      );
+      toast.success(`Loaded ${result.meta.owner}/${result.meta.name}@${result.meta.branch}`);
       void startAnalysis(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to load repository";
@@ -118,6 +153,25 @@ function Index() {
       setLoading(false);
     }
   };
+
+  // Deep-link: ?repo=owner/name&branch=optional
+  useEffect(() => {
+    if (!search.repo || loading || data) return;
+    const key = `${search.repo}@${search.branch ?? ""}`;
+    if (autoLoadedKey.current === key) return;
+    autoLoadedKey.current = key;
+    try {
+      const [owner, name] = search.repo.split("/");
+      if (!owner || !name) return;
+      const url = toGitHubUrl(owner, name, search.branch);
+      parseGitHubUrl(url);
+      void handleSubmit(url);
+    } catch {
+      toast.error("Invalid ?repo= parameter. Use owner/name.");
+    }
+    // Only run when search params change on first load of a share link.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.repo, search.branch]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -137,7 +191,7 @@ function Index() {
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="mb-6">
-          <RepoInput onSubmit={handleSubmit} loading={loading} />
+          <RepoInput onSubmit={handleSubmit} loading={loading} initialUrl={shareInitialUrl} />
         </div>
 
         {loading && <LoadingState />}
@@ -196,7 +250,7 @@ function Index() {
               analysis={aiState.phase === "done" ? aiState.analysis : null}
               owner={data.meta.owner}
               repo={data.meta.name}
-              branch={data.meta.defaultBranch}
+              branch={data.meta.branch}
             />
           </div>
         )}
@@ -225,6 +279,8 @@ function BriefPanel({
         fileCount={data.files.length}
         analyzedCount={aiState.analyzedCount}
         fromCache={aiState.fromCache}
+        branch={data.meta.branch}
+        treeSha={data.meta.treeSha}
         onFileSelect={onFileSelect}
       />
     );

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,10 +6,16 @@ import { Button } from "@/components/ui/button";
 interface Props {
   onSubmit: (url: string) => void;
   loading: boolean;
+  /** Prefill from shareable ?repo= query. */
+  initialUrl?: string;
 }
 
-export function RepoInput({ onSubmit, loading }: Props) {
-  const [url, setUrl] = useState("https://github.com/facebook/react");
+export function RepoInput({ onSubmit, loading, initialUrl }: Props) {
+  const [url, setUrl] = useState(initialUrl ?? "");
+
+  useEffect(() => {
+    if (initialUrl) setUrl(initialUrl);
+  }, [initialUrl]);
 
   const handle = (e: FormEvent) => {
     e.preventDefault();
@@ -24,7 +30,7 @@ export function RepoInput({ onSubmit, loading }: Props) {
         <Input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://github.com/owner/repo"
+          placeholder="https://github.com/owner/repo or owner/repo/tree/branch"
           className="pl-9"
           disabled={loading}
           aria-label="GitHub repository URL"

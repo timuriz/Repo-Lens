@@ -6,6 +6,7 @@ import { countStartHereGroups } from "@/lib/start-here";
 import { FileRef } from "@/components/file-ref";
 import { AiModulesPanel } from "@/components/ai-modules-panel";
 import { AiRisksPanel, RiskCard } from "@/components/ai-risks-panel";
+import { ArchitectureGraph } from "@/components/architecture-graph";
 import { sortRisksBySeverity } from "@/lib/risk-utils";
 import { StartHereList } from "@/components/start-here-list";
 import {
@@ -22,6 +23,8 @@ interface Props {
   fileCount: number;
   analyzedCount: number;
   fromCache?: boolean;
+  branch?: string;
+  treeSha?: string;
   onFileSelect?: (path: string) => void;
 }
 
@@ -30,10 +33,13 @@ export function AiAnalysisPanel({
   fileCount,
   analyzedCount,
   fromCache,
+  branch,
+  treeSha,
   onFileSelect,
 }: Props) {
   const [tab, setTab] = useState("brief");
   const startPointCount = countStartHereGroups(analysis.startHere);
+  const shortSha = treeSha?.slice(0, 7);
 
   return (
     <div className="space-y-4">
@@ -51,6 +57,23 @@ export function AiAnalysisPanel({
           {fileCount} files · {analyzedCount} analyzed · {analysis.modules.length} modules ·{" "}
           {analysis.risks.length} risks · {startPointCount} start points
         </p>
+        {(branch || shortSha) && (
+          <p className="text-[11px] text-muted-foreground/80">
+            Current for
+            {branch ? (
+              <>
+                {" "}
+                branch <span className="font-medium text-foreground/70">{branch}</span>
+              </>
+            ) : null}
+            {shortSha ? (
+              <>
+                {" · "}
+                tree <code className="rounded bg-muted px-1 font-mono">{shortSha}</code>
+              </>
+            ) : null}
+          </p>
+        )}
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -60,6 +83,9 @@ export function AiAnalysisPanel({
           </TabsTrigger>
           <TabsTrigger value="modules" className="text-xs">
             Modules
+          </TabsTrigger>
+          <TabsTrigger value="map" className="text-xs">
+            Map
           </TabsTrigger>
           <TabsTrigger value="risks" className="text-xs">
             Risks
@@ -81,6 +107,10 @@ export function AiAnalysisPanel({
 
         <TabsContent value="modules" className="mt-4">
           <AiModulesPanel modules={analysis.modules} onFileSelect={onFileSelect} />
+        </TabsContent>
+
+        <TabsContent value="map" className="mt-4">
+          <ArchitectureGraph modules={analysis.modules} edges={analysis.edges} />
         </TabsContent>
 
         <TabsContent value="risks" className="mt-4">

@@ -1,15 +1,88 @@
-// Server-only: downloads file contents from raw.githubusercontent.com.
-// Raw requests don't count against the GitHub API rate limit, so a full
-// analysis costs zero API calls on the server side.
+// Server-only: GitHub tree + raw file content helpers.
+// Tree uses the GitHub API (optional GITHUB_TOKEN for higher limits).
+// File contents use raw.githubusercontent.com (does not count against API quota).
 
-const PER_FILE_LIMIT = 48_000; // chars per file sent to the model
-const TOTAL_BUDGET = 200_000; // total chars across all files
+import process from "node:process";
+import type { RepoFile, RepoMeta } from "@/types/repo";
+import { shouldIgnoreFile } from "./filters";
+import { classifyFile } from "./scoring";
+
+const PER_FILE_LIMIT = 48_000;
+const TOTAL_BUDGET = 200_000;
 const CONCURRENCY = 8;
 
 export interface FetchedFile {
   path: string;
   content: string;
   truncated: boolean;
+}
+
+export interface FetchRepoTreeResult {
+  meta: RepoMeta;
+  files: RepoFile[];
+  truncated: boolean;
+}
+
+function githubHeaders(): HeadersInit {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "RepoLens",
+  };
+  const token = process.env.GITHUB_TOKEN;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+export async function fetchRepoTree(
+  owner: string,
+  repo: string,
+  branch?: string,
+): Promise<FetchRepoTreeResult> {
+  const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+    headers: githubHeaders(),
+  });
+  if (repoRes.status === 404) throw new Error("Repository not found");
+  if (repoRes.status === 403) {
+    throw new Error("GitHub API rate limit reached. Try again later or set GITHUB_TOKEN.");
+  }
+  if (!repoRes.ok) throw new Error(`GitHub API error (${repoRes.status})`);
+  const repoData = await repoRes.json();
+
+  const defaultBranch = repoData.default_branch as string;
+  const ref = branch?.trim() || defaultBranch;
+
+  const treeRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`,
+    { headers: githubHeaders() },
+  );
+  if (treeRes.status === 404) {
+    throw new Error(`Branch or ref "${ref}" not found in ${owner}/${repo}`);
+  }
+  if (!treeRes.ok) throw new Error(`Failed to load repo tree (${treeRes.status})`);
+  const treeData = await treeRes.json();
+
+  const files: RepoFile[] = (treeData.tree as Array<{ path: string; type: string; size?: number }>)
+    .filter((item) => item.type === "blob")
+    .filter((item) => !shouldIgnoreFile(item.path))
+    .map((item) => {
+      const { score, role, reason } = classifyFile(item.path);
+      return { path: item.path, size: item.size ?? 0, score, role, reason };
+    });
+
+  return {
+    meta: {
+      owner,
+      name: repo,
+      branch: ref,
+      defaultBranch,
+      treeSha: String(treeData.sha ?? ref),
+      description: repoData.description ?? null,
+      stars: repoData.stargazers_count ?? 0,
+      url: repoData.html_url ?? `https://github.com/${owner}/${repo}`,
+    },
+    files,
+    truncated: Boolean(treeData.truncated),
+  };
 }
 
 async function fetchRawFile(
@@ -27,7 +100,6 @@ async function fetchRawFile(
     const res = await fetch(url);
     if (!res.ok) return null;
     const text = await res.text();
-    // Crude binary check: raw text with NUL bytes isn't worth sending to the model.
     if (text.includes("\u0000")) return null;
     const truncated = text.length > PER_FILE_LIMIT;
     return {
@@ -66,7 +138,6 @@ export async function fetchFileContents(
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, paths.length) }, worker));
 
-  // Preserve importance order and stop once the total budget is spent.
   const files: FetchedFile[] = [];
   let used = 0;
   for (const file of results) {
