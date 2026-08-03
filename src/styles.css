@@ -144,7 +144,7 @@
 }
 
 /* Shiki file preview — VS Code-like gutter + themed code */
-.repolens-code-wrap pre {
+.repoprism-code-wrap pre {
   margin: 0;
   padding: 0.75rem 0;
   overflow-x: auto;
@@ -155,19 +155,19 @@
   background: transparent !important;
 }
 
-.repolens-code-wrap code {
+.repoprism-code-wrap code {
   display: grid;
   counter-reset: line;
 }
 
-.repolens-code-wrap .line {
+.repoprism-code-wrap .line {
   display: inline-block;
   width: 100%;
   padding-right: 1rem;
   padding-left: 0;
 }
 
-.repolens-code-wrap .line::before {
+.repoprism-code-wrap .line::before {
   content: attr(data-line);
   display: inline-block;
   width: 2.75rem;
@@ -179,16 +179,16 @@
   border-right: 1px solid oklch(0.7 0.02 260 / 0.25);
 }
 
-.dark .repolens-code-wrap .line::before {
+.dark .repoprism-code-wrap .line::before {
   color: oklch(0.7 0.02 260 / 0.4);
   border-right-color: oklch(1 0 0 / 0.1);
 }
 
-.repolens-code-wrap {
+.repoprism-code-wrap {
   background: #f6f8fa;
 }
 
-.dark .repolens-code-wrap {
+.dark .repoprism-code-wrap {
   background: #0d1117;
 }
 

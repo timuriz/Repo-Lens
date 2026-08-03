@@ -77,14 +77,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "RepoLens" },
+      { title: "RepoPrism" },
       { name: "description", content: "Understand any GitHub repo at a glance" },
-      { name: "author", content: "RepoLens" },
-      { property: "og:title", content: "RepoLens" },
+      { name: "author", content: "RepoPrism" },
+      { property: "og:title", content: "RepoPrism" },
       { property: "og:description", content: "Understand any GitHub repo at a glance" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@RepoLens" },
+      { name: "twitter:site", content: "@RepoPrism" },
       { name: "theme-color", content: "#1e2130" },
     ],
     links: [

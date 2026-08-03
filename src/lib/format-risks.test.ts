@@ -40,7 +40,7 @@ const risks: AnalysisRisk[] = [
 
 describe("formatRisksForClipboard", () => {
   it("formats findings as shareable Markdown grouped by severity", () => {
-    expect(formatRisksForClipboard(risks)).toBe(`# RepoLens risk report
+    expect(formatRisksForClipboard(risks)).toBe(`# RepoPrism risk report
 
 2 findings · 1 high · 1 medium
 
@@ -71,7 +71,7 @@ describe("formatRisksForClipboard", () => {
 
   it("returns a useful report when the current view has no findings", () => {
     expect(formatRisksForClipboard([])).toBe(
-      "# RepoLens risk report\n\nNo findings in the current view.",
+      "# RepoPrism risk report\n\nNo findings in the current view.",
     );
   });
 });

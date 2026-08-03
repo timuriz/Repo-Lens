@@ -16,7 +16,7 @@ export default defineConfig({
       deployConfig: true,
       // Stable Workers name (overrides folder-based auto name).
       wrangler: {
-        name: "repolens-ai",
+        name: "repoprism",
       },
     },
     output: {

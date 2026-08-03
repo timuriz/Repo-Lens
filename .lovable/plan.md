@@ -1,4 +1,4 @@
-# RepoLens — Frontend Skeleton
+# RepoPrism — Frontend Skeleton
 
 Цель: собрать рабочий фронтенд-скелет приложения для анализа GitHub-репозиториев. Без бэкенда и без AI — вся логика на клиенте, данные моковые (или прямой fetch к публичному GitHub API из браузера, без секретов).
 
@@ -44,7 +44,7 @@ src/
 - **Дерево**: GitHub отдаёт плоский список путей — конвертируем в nested структуру в `lib/tree.ts`.
 - **Scoring**: только по path (контент не качаем — это N запросов, делаем позже). Сортировка убывающая, top-10.
 - **UI**: shadcn компоненты (`Input`, `Button`, `Card`, `ScrollArea`, `Badge`, `Skeleton`). Иконки из `lucide-react` (Folder, File, Star, GitBranch).
-- **SEO**: `head()` в `index.tsx` с title "RepoLens — Understand any GitHub repo".
+- **SEO**: `head()` в `index.tsx` с title "RepoPrism — Understand any GitHub repo".
 
 ## Что НЕ делаем сейчас
 

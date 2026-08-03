@@ -10,7 +10,7 @@ interface Props {
   className?: string;
 }
 
-/** Keep the highlighter small — only langs RepoLens commonly analyzes. */
+/** Keep the highlighter small — only langs RepoPrism commonly analyzes. */
 const SUPPORTED_LANGS = [
   "typescript",
   "tsx",
@@ -126,7 +126,7 @@ export function CodeBlock({ code, path, className }: Props) {
 
   return (
     <div
-      className={cn("repolens-code-wrap overflow-x-auto rounded-md border", className)}
+      className={cn("repoprism-code-wrap overflow-x-auto rounded-md border", className)}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

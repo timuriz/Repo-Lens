@@ -45,13 +45,13 @@ export const Route = createFileRoute("/")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "RepoLens — Understand any GitHub repo" },
+      { title: "RepoPrism — Understand any GitHub repo" },
       {
         name: "description",
         content:
           "Paste a GitHub URL to see a clear map of the project: file tree, the most important files, and a start-here guide.",
       },
-      { property: "og:title", content: "RepoLens — Understand any GitHub repo" },
+      { property: "og:title", content: "RepoPrism — Understand any GitHub repo" },
       {
         property: "og:description",
         content:
@@ -183,7 +183,7 @@ function Index() {
             <Telescope className="size-5" />
           </div>
           <div>
-            <h1 className="text-base font-semibold leading-tight">RepoLens</h1>
+            <h1 className="text-base font-semibold leading-tight">RepoPrism</h1>
             <p className="text-xs text-muted-foreground">Understand any GitHub repo at a glance</p>
           </div>
         </div>

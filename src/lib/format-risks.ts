@@ -33,7 +33,7 @@ function formatRisk(risk: AnalysisRisk): string {
 
 /** Render the given (already-filtered) findings as a shareable Markdown report. */
 export function formatRisksForClipboard(risks: AnalysisRisk[]): string {
-  const title = "# RepoLens risk report";
+  const title = "# RepoPrism risk report";
   if (risks.length === 0) {
     return `${title}\n\nNo findings in the current view.`;
   }

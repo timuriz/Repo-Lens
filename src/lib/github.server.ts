@@ -26,7 +26,7 @@ export interface FetchRepoTreeResult {
 function githubHeaders(): HeadersInit {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "RepoLens",
+    "User-Agent": "RepoPrism",
   };
   const token = process.env.GITHUB_TOKEN;
   if (token) headers.Authorization = `Bearer ${token}`;

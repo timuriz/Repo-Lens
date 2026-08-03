@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("RepoLens smoke", () => {
+test.describe("RepoPrism smoke", () => {
   test("home renders with brand and repo input", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "RepoLens" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "RepoPrism" })).toBeVisible();
     await expect(page.getByLabel("GitHub repository URL")).toBeVisible();
     await expect(page.getByRole("button", { name: "Analyze" })).toBeVisible();
   });
@@ -29,7 +29,7 @@ test.describe("RepoLens smoke", () => {
     await page.goto("/?repo=this-owner-should/definitely-not-exist-xyz-123");
 
     // App shell (brand + input) stays interactive; no white screen.
-    await expect(page.getByRole("heading", { name: "RepoLens" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "RepoPrism" })).toBeVisible();
     await expect(page.getByLabel("GitHub repository URL")).toBeVisible({
       timeout: 30_000,
     });

@@ -1,14 +1,14 @@
-# RepoLens AI
+# RepoPrism
 
 **Paste a GitHub repository URL and get an interactive AI-generated onboarding map of the codebase.**
 
-RepoLens helps developers understand unfamiliar projects faster by generating architecture summaries, entry-point paths, module maps, grounded risk findings, and a file-level navigator — not another chat wrapper over a repo dump.
+RepoPrism helps developers understand unfamiliar projects faster by generating architecture summaries, entry-point paths, module maps, grounded risk findings, and a file-level navigator — not another chat wrapper over a repo dump.
 
 ---
 
-## Why RepoLens
+## Why RepoPrism
 
-Most “AI for codebases” products are chat UIs. RepoLens is an **onboarding layer**:
+Most “AI for codebases” products are chat UIs. RepoPrism is an **onboarding layer**:
 
 | You get | Instead of |
 | --- | --- |
@@ -64,8 +64,8 @@ https://github.com/owner/repo/tree/feature/foo
 ### Setup
 
 ```bash
-git clone https://github.com/your-username/Repo-Lens.git
-cd Repo-Lens
+git clone https://github.com/timuriz/RepoPrism.git
+cd RepoPrism
 npm install
 cp .env.example .env
 ```
@@ -154,7 +154,7 @@ Brief / Modules / Map / Risks / Contribute + grounded file references
 | `GITHUB_TOKEN` | No | Raises GitHub API limits for tree fetch |
 | `ANALYSIS_CACHE_PATH` | No | Override SQLite cache location (default `data/analysis-cache.sqlite`) |
 
-Without a Gemini key, RepoLens still loads the tree and heuristic brief; AI panels show a clear setup message.
+Without a Gemini key, RepoPrism still loads the tree and heuristic brief; AI panels show a clear setup message.
 
 ---
 
@@ -218,5 +218,5 @@ MIT
 ---
 
 <p align="center">
-  <sub>RepoLens turns any GitHub repository into an interactive onboarding map for developers.</sub>
+  <sub>RepoPrism turns any GitHub repository into an interactive onboarding map for developers.</sub>
 </p>
