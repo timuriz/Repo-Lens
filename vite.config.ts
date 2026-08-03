@@ -7,6 +7,24 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  // Outside Lovable sandbox nitro is skipped unless explicitly enabled.
+  // Force Cloudflare Workers output for local + CI deploys.
+  nitro: {
+    preset: "cloudflare-module",
+    cloudflare: {
+      nodeCompat: true,
+      deployConfig: true,
+      // Stable Workers name (overrides folder-based auto name).
+      wrangler: {
+        name: "repolens-ai",
+      },
+    },
+    output: {
+      dir: "dist",
+      serverDir: "dist/server",
+      publicDir: "dist/client",
+    },
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this

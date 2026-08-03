@@ -52,6 +52,17 @@ You can also paste full GitHub tree URLs:
 https://github.com/owner/repo/tree/feature/foo
 ```
 
+### Deploy
+
+Step-by-step Cloudflare Workers guide: **[DEPLOY.md](./DEPLOY.md)**
+
+```bash
+npx wrangler login
+npm run build
+npx wrangler secret put GEMINI_API_KEY --config dist/server/wrangler.json
+npm run deploy
+```
+
 ---
 
 ## Quick start
@@ -140,7 +151,8 @@ Brief / Modules / Map / Risks / Contribute + grounded file references
 | UI | Tailwind CSS 4, shadcn/ui, React Flow |
 | AI | Google Gemini (`gemini-2.5-flash`), structured JSON output |
 | Highlighting | Shiki (limited language set) |
-| Data | Two-tier analysis cache: in-memory L1 + SQLite L2 (`node:sqlite`), keyed by `owner/repo@treeSha` |
+| Data | Two-tier analysis cache: in-memory L1 + optional SQLite L2 (`node:sqlite`), keyed by `owner/repo@treeSha` |
+| Deploy | Cloudflare Workers via Nitro (`cloudflare-module`) + Wrangler |
 | Testing | Vitest (unit) + Playwright (e2e smoke) |
 
 ---
@@ -162,8 +174,8 @@ Without a Gemini key, RepoLens still loads the tree and heuristic brief; AI pane
 - Optimized for **public** GitHub repositories
 - AI reads a **selected subset** of important files (~25), not every file in large monorepos
 - Best signal on **TypeScript / JavaScript / Python / Swift / Kotlin**-style layouts
-- Analysis cache is a **local SQLite file** (single-instance; swap for KV/D1 to scale horizontally)
-- Demo rate limit: limited analyses per IP per hour (cache hits don’t count)
+- Analysis cache is a **local SQLite file** in Node; on Cloudflare Workers it falls back to **in-memory only**
+- Demo rate limit: limited analyses per IP per hour (cache hits don’t count; weaker on multi-isolate Workers)
 - Very large repos may return a **truncated** GitHub tree — surfaced clearly in the UI
 
 ---

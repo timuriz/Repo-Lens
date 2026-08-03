@@ -43,3 +43,4 @@ data/
 *.njsproj
 *.sln
 *.sw?
+.DEPLOY.md

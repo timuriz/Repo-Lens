@@ -1,9 +1,13 @@
-import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { Check, Clipboard, ShieldAlert, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 
 import type { AnalysisRisk, RiskConfidence, RiskKind, RiskSeverity } from "@/types/analysis";
+import { formatRisksForClipboard } from "@/lib/format-risks";
 import { sortRisksBySeverity } from "@/lib/risk-utils";
 import { FileRef } from "@/components/file-ref";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -43,6 +47,20 @@ const KIND_SECTIONS: { kind: RiskKind; title: string; muted?: boolean }[] = [
 ];
 
 export function AiRisksPanel({ risks, onFileSelect }: Props) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyRisks() {
+    try {
+      const report = formatRisksForClipboard(risks);
+      await navigator.clipboard.writeText(report);
+      setCopied(true);
+      toast.success("Risk report copied");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Couldn't copy risk report");
+    }
+  }
+
   if (risks.length === 0) {
     return (
       <div className="flex items-center gap-2.5 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-3">
@@ -56,11 +74,17 @@ export function AiRisksPanel({ risks, onFileSelect }: Props) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-2">
-        <ShieldAlert className="size-4 text-primary" />
-        <p className="text-sm font-semibold">
-          AI found {risks.length} potential issue{risks.length === 1 ? "" : "s"}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="size-4 text-primary" />
+          <p className="text-sm font-semibold">
+            AI found {risks.length} potential issue{risks.length === 1 ? "" : "s"}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="h-7 gap-1.5 px-2" onClick={copyRisks}>
+          {copied ? <Check /> : <Clipboard />}
+          {copied ? "Copied" : "Copy risks"}
+        </Button>
       </div>
 
       {KIND_SECTIONS.map(({ kind, title, muted }) => {

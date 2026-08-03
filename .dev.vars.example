@@ -1,0 +1,4 @@
+# Local Wrangler secrets for `wrangler dev` / preview (never commit real keys)
+# Copy from .env.example and fill in:
+GEMINI_API_KEY=
+GITHUB_TOKEN=
