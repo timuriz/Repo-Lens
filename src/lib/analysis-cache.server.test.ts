@@ -32,8 +32,8 @@ describe("analysis cache + rate limit", () => {
     resetAnalysisCacheForTests();
   });
 
-  it("keys by tree sha", () => {
-    expect(cacheKey("Owner", "Repo", "abc123")).toBe("owner/repo@abc123");
+  it("keys by tree sha with a schema version prefix", () => {
+    expect(cacheKey("Owner", "Repo", "abc123")).toBe("v2:owner/repo@abc123");
   });
 
   it("stores and returns cached analysis", () => {

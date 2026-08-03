@@ -1,41 +1,53 @@
-import type { AnalysisRisk, RiskKind } from "@/types/analysis";
-import { sortRisksBySeverity } from "@/lib/risk-utils";
+import type { AnalysisRisk, RiskConfidence, RiskSeverity } from "@/types/analysis";
+import { SEVERITY_ORDER, countBySeverity, sortRisksBySeverity } from "@/lib/risk-utils";
 
-const SECTION_LABEL: Record<RiskKind, string> = {
-  confirmed: "Confirmed issues",
-  inferred: "Inferred risks",
+const SEVERITY_LABEL: Record<RiskSeverity, string> = {
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+  informational: "Informational",
 };
 
-const CONFIDENCE_LABEL: Record<AnalysisRisk["confidence"], string> = {
+const CONFIDENCE_LABEL: Record<RiskConfidence, string> = {
   low: "Low",
   medium: "Medium",
   high: "High",
 };
 
 function formatRisk(risk: AnalysisRisk): string {
-  return [
-    `### [${risk.severity.toUpperCase()}] ${risk.path}`,
+  const lines = [
+    `### [${SEVERITY_LABEL[risk.severity].toUpperCase()}] ${risk.category} · ${risk.path}`,
     `**Issue:** ${risk.issue}`,
+    `**Failure scenario:** ${risk.scenario}`,
+  ];
+  if (risk.preconditions.trim()) lines.push(`**Applies when:** ${risk.preconditions}`);
+  lines.push(
     `**Fix:** ${risk.recommendation}`,
-    `**Confidence:** ${CONFIDENCE_LABEL[risk.confidence]}`,
+    `**Factors:** ${risk.impact} impact · ${risk.likelihood} likelihood · ${risk.scope} scope`,
+    `**Why this priority:** ${risk.rationale}`,
+    `**Confidence:** ${CONFIDENCE_LABEL[risk.confidence]} (${risk.kind})`,
     `**Evidence:** ${risk.evidence}`,
-  ].join("\n");
+  );
+  return lines.join("\n");
 }
 
+/** Render the given (already-filtered) findings as a shareable Markdown report. */
 export function formatRisksForClipboard(risks: AnalysisRisk[]): string {
   const title = "# RepoLens risk report";
   if (risks.length === 0) {
-    return `${title}\n\nNo potential issues found in the analyzed files.`;
+    return `${title}\n\nNo findings in the current view.`;
   }
 
-  const confirmedCount = risks.filter((risk) => risk.kind === "confirmed").length;
-  const inferredCount = risks.length - confirmedCount;
-  const summary = `${risks.length} potential issue${risks.length === 1 ? "" : "s"} · ${confirmedCount} confirmed · ${inferredCount} inferred`;
+  const counts = countBySeverity(risks);
+  const breakdown = SEVERITY_ORDER.filter((severity) => counts[severity] > 0)
+    .map((severity) => `${counts[severity]} ${severity}`)
+    .join(" · ");
+  const summary = `${risks.length} finding${risks.length === 1 ? "" : "s"} · ${breakdown}`;
 
-  const sections = (["confirmed", "inferred"] as const).flatMap((kind) => {
-    const group = sortRisksBySeverity(risks.filter((risk) => risk.kind === kind));
+  const sections = SEVERITY_ORDER.flatMap((severity) => {
+    const group = sortRisksBySeverity(risks.filter((risk) => risk.severity === severity));
     if (group.length === 0) return [];
-    return [`## ${SECTION_LABEL[kind]}\n\n${group.map(formatRisk).join("\n\n")}`];
+    return [`## ${SEVERITY_LABEL[severity]}\n\n${group.map(formatRisk).join("\n\n")}`];
   });
 
   return [title, summary, ...sections].join("\n\n");

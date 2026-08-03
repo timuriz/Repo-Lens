@@ -60,7 +60,7 @@ export function AiAnalysisPanel({
         </div>
         <p className="text-xs text-muted-foreground">
           {fileCount} files · {analyzedCount} analyzed · {analysis.modules.length} modules ·{" "}
-          {analysis.risks.length} risks · {startPointCount} start points
+          {analysis.risks.length} findings · {startPointCount} start points
         </p>
         {(branch || shortSha) && (
           <p className="text-[11px] text-muted-foreground/80">
@@ -199,7 +199,7 @@ function BriefTab({
       )}
 
       {topRisks.length > 0 && (
-        <Section icon={<Sparkles className="size-4" />} title="Top risks">
+        <Section icon={<Sparkles className="size-4" />} title="Top findings">
           <div className="space-y-2">
             {topRisks.map((risk, i) => (
               <RiskCard key={`${risk.path}-${i}`} risk={risk} onFileSelect={onFileSelect} />
@@ -210,7 +210,7 @@ function BriefTab({
                 onClick={onShowRisks}
                 className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               >
-                View all {analysis.risks.length} issues
+                View all {analysis.risks.length} findings
                 <ArrowRight className="size-3" />
               </button>
             )}

@@ -2,6 +2,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { z } from "zod";
 
 import type { RepoAnalysis } from "@/types/analysis";
+import {
+  RISK_CATEGORIES,
+  RISK_IMPACTS,
+  RISK_LIKELIHOODS,
+  RISK_SCOPES,
+  calibrateRisks,
+} from "./risk-calibration";
 import type { FetchedFile } from "./github.server";
 
 const MODEL = "gemini-2.5-flash";
@@ -18,15 +25,20 @@ const analysisSchema = z.object({
     }),
   ),
   startHere: z.array(z.object({ step: z.number(), path: z.string(), reason: z.string() })),
+  // Raw findings — the model supplies factors and an exact quote; severity,
+  // kind, and confidence are derived later in calibrateRisks().
   risks: z.array(
     z.object({
-      severity: z.enum(["low", "medium", "high"]),
-      kind: z.enum(["confirmed", "inferred"]),
-      confidence: z.enum(["low", "medium", "high"]),
+      category: z.enum(RISK_CATEGORIES),
       path: z.string(),
       issue: z.string(),
       recommendation: z.string(),
+      scenario: z.string(),
+      preconditions: z.string(),
       evidence: z.string(),
+      impact: z.enum(RISK_IMPACTS),
+      likelihood: z.enum(RISK_LIKELIHOODS),
+      scope: z.enum(RISK_SCOPES),
     }),
   ),
   edges: z.array(z.object({ from: z.string(), to: z.string(), label: z.string() })),
@@ -103,27 +115,16 @@ const responseSchema = {
     },
     risks: {
       type: Type.ARRAY,
-      description: "Code smells, bugs, and tech debt with evidence. Empty if none.",
+      description:
+        "Findings backed by an exact quote from a provided file. Do NOT assign a severity — describe the factors and let the tool derive priority. Empty if none.",
       items: {
         type: Type.OBJECT,
         properties: {
-          severity: {
+          category: {
             type: Type.STRING,
-            enum: ["low", "medium", "high"],
+            enum: [...RISK_CATEGORIES],
             description:
-              "high = likely bug or security issue; medium = bad practice with real impact; low = minor smell.",
-          },
-          kind: {
-            type: Type.STRING,
-            enum: ["confirmed", "inferred"],
-            description:
-              "confirmed = directly observed in code (typo, hardcoded URL, wildcard CORS); inferred = conclusion from README/docs/structure.",
-          },
-          confidence: {
-            type: Type.STRING,
-            enum: ["low", "medium", "high"],
-            description:
-              "high = direct code observation; medium = README/docs citation; low = structural guess.",
+              "Area affected: security, reliability, cost (spend/abuse), performance, maintainability, or ux.",
           },
           path: {
             type: Type.STRING,
@@ -134,13 +135,51 @@ const responseSchema = {
             type: Type.STRING,
             description: "One actionable sentence on how to fix it.",
           },
+          scenario: {
+            type: Type.STRING,
+            description:
+              "The concrete failure that occurs if this is left as-is. Required — never generic advice.",
+          },
+          preconditions: {
+            type: Type.STRING,
+            description:
+              "The conditions under which the scenario happens (e.g. 'in production with untrusted input', 'only in large repos'). State if it is a deliberate demo trade-off.",
+          },
           evidence: {
             type: Type.STRING,
             description:
-              "Quote or paraphrase from the file content that supports this finding. For inferred risks, cite what the README/docs say.",
+              "An EXACT verbatim quote copied from the cited file's content — not a paraphrase. Findings whose quote cannot be found in the file are discarded.",
+          },
+          impact: {
+            type: Type.STRING,
+            enum: [...RISK_IMPACTS],
+            description:
+              "How bad the outcome is: minor (cosmetic/DX), moderate (degraded behavior), major (data loss, security breach, outage, runaway cost).",
+          },
+          likelihood: {
+            type: Type.STRING,
+            enum: [...RISK_LIKELIHOODS],
+            description:
+              "How probable the scenario is given the preconditions: unlikely, plausible, or likely.",
+          },
+          scope: {
+            type: Type.STRING,
+            enum: [...RISK_SCOPES],
+            description: "Who is affected: local (one dev/file), multi-user, or service-wide.",
           },
         },
-        required: ["severity", "kind", "confidence", "path", "issue", "recommendation", "evidence"],
+        required: [
+          "category",
+          "path",
+          "issue",
+          "recommendation",
+          "scenario",
+          "preconditions",
+          "evidence",
+          "impact",
+          "likelihood",
+          "scope",
+        ],
       },
     },
     edges: {
@@ -211,13 +250,14 @@ Start Here rules:
 - After docs, list 4-6 code entry points (bootstrap, router, core services).
 - Prefer source code files (.swift, .ts, .py, etc.) over markdown for steps after documentation.
 
-Risk rules:
+Risk rules (calibrated — do NOT rate severity yourself):
 - Put ALL findings into the top-level "risks" array — never inside modules.
-- Each risk must cite the exact file path from the provided file contents.
-- kind="confirmed" for issues directly visible in code: typos, hardcoded URLs, wildcard CORS, missing error handling, secrets in code.
-- kind="inferred" for conclusions from README/docs or project structure (e.g. "app may not be production-ready").
-- "evidence" must quote or paraphrase the supporting text from the file — never leave empty.
-- confidence="high" for direct code observation; "medium" for README/docs; "low" for structural guess.
+- Each finding must cite the exact file path and an EXACT verbatim quote ("evidence") copied from that file. Do not paraphrase; if you cannot quote it, do not report it.
+- Every finding MUST have a concrete failure "scenario" (what actually breaks) and its "preconditions" (when it happens). No generic best-practice advice.
+- Describe factors, not a verdict: set "impact" (minor/moderate/major), "likelihood" (unlikely/plausible/likely), and "scope" (local/multi-user/service-wide). The tool computes severity from these.
+- Reserve major impact for real damage: data loss, security breach, outage, or runaway cost. A missing lint flag, a plaintext fallback, or a limited-but-working feature is minor.
+- If something is a deliberate demo/portfolio trade-off already acknowledged in code or docs, say so in "preconditions" and rate impact/likelihood accordingly instead of inflating it.
+- Do NOT report style preferences, working fallbacks, or "could add more X" wishes unless there is a concrete negative scenario.
 - "recommendation" must be one actionable sentence.
 
 Good first tasks rules:
@@ -270,10 +310,12 @@ Produce the onboarding analysis as JSON.`;
   if (!text) throw new Error("Empty response from Gemini");
   const analysis = analysisSchema.parse(JSON.parse(text));
 
-  const knownPaths = new Set(input.files.map((f) => f.path));
+  const sources = new Map(input.files.map((f) => [f.path, f.content]));
+  const knownPaths = new Set(sources.keys());
   return {
     ...analysis,
-    risks: analysis.risks.filter((r) => knownPaths.has(r.path)),
+    // Ground + calibrate: derive severity/kind/confidence and drop unsupported findings.
+    risks: calibrateRisks(analysis.risks, sources),
     // Ground tasks: keep only paths we actually analyzed, and drop tasks left with none.
     goodFirstTasks: analysis.goodFirstTasks
       .map((t) => ({ ...t, paths: t.paths.filter((p) => knownPaths.has(p)) }))

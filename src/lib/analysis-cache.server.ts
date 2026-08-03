@@ -25,9 +25,13 @@ export const RATE_LIMIT_MAX = 8;
 const analysisCache = new Map<string, CachedAnalysis>();
 const rateBuckets = new Map<string, number[]>();
 
+// Bump when the cached analysis shape changes so stale entries can't reach the
+// new UI. v2 introduces calibrated risks (severity/category/scenario/rationale).
+const CACHE_VERSION = "v2";
+
 /** Cache key pinned to tree SHA so branch updates invalidate automatically. */
 export function cacheKey(owner: string, name: string, treeSha: string): string {
-  return `${owner.toLowerCase()}/${name.toLowerCase()}@${treeSha}`;
+  return `${CACHE_VERSION}:${owner.toLowerCase()}/${name.toLowerCase()}@${treeSha}`;
 }
 
 function touchL1(key: string, entry: CachedAnalysis): void {
