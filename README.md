@@ -14,7 +14,7 @@ Most “AI for codebases” products are chat UIs. RepoLens is an **onboarding l
 | --- | --- |
 | Structured brief (architecture, modules, start-here) | A wall of prose |
 | Clickable file references → tree highlight + preview | Hallucinated paths |
-| Confirmed vs inferred risks with evidence | Vague “maybe issues” |
+| Calibrated findings with evidence and a "why this priority" rationale | Vague “maybe issues” |
 | Heuristic tree in seconds, AI analysis in the background | Waiting for everything |
 
 Designed for the moment you open someone else’s repo and think: *where do I even start?*
@@ -26,7 +26,7 @@ Designed for the moment you open someone else’s repo and think: *where do I ev
 - **Codebase Brief** — summary, architecture overview, entry points
 - **Start Here path** — ordered reading route (docs grouped, then real code)
 - **Module cards** — purpose + important files as clickable chips
-- **Risks / code smells** — severity, evidence, confidence, confirmed vs inferred
+- **Calibrated findings** — severity (`informational`→`high`) derived deterministically from impact × likelihood, plus category, failure scenario, evidence, confidence, and a "why this priority" rationale; filter by severity or category
 - **Contribution Finder** — grounded "good first tasks" with difficulty, target files, and evidence
 - **Interactive file navigator** — select a path → highlight in tree → syntax-highlighted preview (Shiki)
 - **Progressive UX** — file tree loads immediately; AI fills the center panel when ready
@@ -50,17 +50,6 @@ You can also paste full GitHub tree URLs:
 
 ```text
 https://github.com/owner/repo/tree/feature/foo
-```
-
-### Deploy
-
-Step-by-step Cloudflare Workers guide: **[DEPLOY.md](./DEPLOY.md)**
-
-```bash
-npx wrangler login
-npm run build
-npx wrangler secret put GEMINI_API_KEY --config dist/server/wrangler.json
-npm run deploy
 ```
 
 ---
@@ -138,8 +127,8 @@ Brief / Modules / Map / Risks / Contribute + grounded file references
 
 1. **Tree & scoring** — server-side GitHub API (optional `GITHUB_TOKEN`); ignores `node_modules`, lockfiles, build dirs.
 2. **Content fetch** — raw URLs (does not burn API rate limit).
-3. **Structured AI** — Gemini returns typed JSON (summary, modules, start-here, risks with evidence, edges).
-4. **Grounding** — risks whose paths weren’t in the analyzed set are dropped; UI links paths to the tree and preview.
+3. **Structured AI** — Gemini returns typed JSON (summary, modules, start-here, raw findings with factors + an exact quote, edges). The model describes impact/likelihood/scope — it does **not** assign severity.
+4. **Grounding & calibration** — findings must quote a real line from an analyzed file (bad paths or hallucinated quotes are dropped); severity, kind, and confidence are then derived deterministically, so runs stay stable and consistent. The UI links paths to the tree and preview.
 
 ---
 
