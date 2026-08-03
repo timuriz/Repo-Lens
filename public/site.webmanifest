@@ -1,0 +1,16 @@
+{
+  "name": "RepoLens",
+  "short_name": "RepoLens",
+  "description": "Understand any GitHub repo at a glance",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "theme_color": "#1e2130",
+  "background_color": "#1e2130",
+  "display": "standalone",
+  "start_url": "/"
+}
