@@ -11,7 +11,7 @@ import {
   setCachedAnalysis,
   RATE_LIMIT_MAX,
 } from "./analysis-cache.server";
-import { readStoredAnalysis } from "./analysis-store.server";
+import { readStoredAnalysis, resetAnalysisStoreForTests } from "./analysis-store.server";
 import type { RepoAnalysis } from "@/types/analysis";
 
 const emptyAnalysis: RepoAnalysis = {
@@ -27,6 +27,8 @@ const emptyAnalysis: RepoAnalysis = {
 
 describe("analysis cache + rate limit", () => {
   beforeEach(() => {
+    process.env.ANALYSIS_CACHE_PATH = ":memory:";
+    resetAnalysisStoreForTests();
     resetAnalysisCacheForTests();
   });
 

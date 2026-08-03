@@ -2,6 +2,7 @@ import type { RepoAnalysis } from "@/types/analysis";
 import {
   clearStoredAnalyses,
   readStoredAnalysis,
+  resetAnalysisStoreForTests,
   writeStoredAnalysis,
 } from "./analysis-store.server";
 
@@ -93,6 +94,7 @@ export function resetAnalysisCacheForTests(): void {
   } catch {
     // ignore — store may not be initialized in some tests
   }
+  resetAnalysisStoreForTests();
 }
 
 export function checkRateLimit(ip: string): { ok: true } | { ok: false; retryAfterMin: number } {

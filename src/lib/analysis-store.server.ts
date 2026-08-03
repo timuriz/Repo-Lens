@@ -1,10 +1,10 @@
-// Server-only SQLite L2 cache for repo analyses.
-// Uses Node's built-in node:sqlite (Node 22+). Survives server restarts.
+// Optional SQLite L2 cache for repo analyses.
+// Uses Node's built-in node:sqlite when available (local Node 22+).
+// On Cloudflare Workers / runtimes without sqlite+fs, L2 is a no-op and
+// analysis-cache.server.ts falls back to in-memory L1 only.
 
+import { createRequire } from "node:module";
 import process from "node:process";
-import { DatabaseSync } from "node:sqlite";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
 
 import type { RepoAnalysis } from "@/types/analysis";
 
@@ -20,37 +20,68 @@ export interface StoredAnalysis {
 const DEFAULT_PATH = "data/analysis-cache.sqlite";
 const MAX_ROWS = 100;
 
-let db: DatabaseSync | null = null;
+type SqliteDb = {
+  exec: (sql: string) => void;
+  prepare: (sql: string) => {
+    get: (...params: unknown[]) => Record<string, unknown> | undefined;
+    run: (...params: unknown[]) => unknown;
+  };
+};
 
-function getDb(): DatabaseSync {
+let db: SqliteDb | null = null;
+let unavailable = false;
+
+function getDb(): SqliteDb | null {
+  if (unavailable) return null;
   if (db) return db;
-  const path = process.env.ANALYSIS_CACHE_PATH || DEFAULT_PATH;
-  if (path !== ":memory:") {
-    mkdirSync(dirname(path), { recursive: true });
-  }
-  const instance = new DatabaseSync(path);
-  instance.exec(`
-    CREATE TABLE IF NOT EXISTS analyses (
-      key TEXT PRIMARY KEY,
-      owner TEXT NOT NULL,
-      name TEXT NOT NULL,
-      branch TEXT NOT NULL,
-      tree_sha TEXT NOT NULL,
-      analyzed_count INTEGER NOT NULL,
-      analysis_json TEXT NOT NULL,
-      sources_json TEXT NOT NULL,
-      cached_at INTEGER NOT NULL
+
+  try {
+    const require = createRequire(import.meta.url);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DatabaseSync } = require("node:sqlite") as {
+      DatabaseSync: new (path: string) => SqliteDb;
+    };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { mkdirSync } = require("node:fs") as typeof import("node:fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { dirname } = require("node:path") as typeof import("node:path");
+
+    const path = process.env.ANALYSIS_CACHE_PATH || DEFAULT_PATH;
+    if (path !== ":memory:") {
+      mkdirSync(dirname(path), { recursive: true });
+    }
+
+    const instance = new DatabaseSync(path);
+    instance.exec(`
+      CREATE TABLE IF NOT EXISTS analyses (
+        key TEXT PRIMARY KEY,
+        owner TEXT NOT NULL,
+        name TEXT NOT NULL,
+        branch TEXT NOT NULL,
+        tree_sha TEXT NOT NULL,
+        analyzed_count INTEGER NOT NULL,
+        analysis_json TEXT NOT NULL,
+        sources_json TEXT NOT NULL,
+        cached_at INTEGER NOT NULL
+      );
+    `);
+    db = instance;
+    return instance;
+  } catch (err) {
+    unavailable = true;
+    console.warn(
+      "[analysis-store] SQLite L2 unavailable — using memory cache only:",
+      err instanceof Error ? err.message : err,
     );
-  `);
-  db = instance;
-  return instance;
+    return null;
+  }
 }
 
 export function readStoredAnalysis(key: string, ttlMs: number): StoredAnalysis | null {
   const conn = getDb();
-  const row = conn
-    .prepare("SELECT * FROM analyses WHERE key = ?")
-    .get(key) as Record<string, unknown> | undefined;
+  if (!conn) return null;
+
+  const row = conn.prepare("SELECT * FROM analyses WHERE key = ?").get(key);
   if (!row) return null;
 
   const cachedAt = Number(row.cached_at);
@@ -81,6 +112,8 @@ export function writeStoredAnalysis(
   value: StoredAnalysis,
 ): void {
   const conn = getDb();
+  if (!conn) return;
+
   conn
     .prepare(
       `INSERT INTO analyses
@@ -106,7 +139,6 @@ export function writeStoredAnalysis(
       value.cachedAt,
     );
 
-  // Evict oldest rows beyond the cap.
   conn
     .prepare(
       `DELETE FROM analyses WHERE key IN (
@@ -118,5 +150,13 @@ export function writeStoredAnalysis(
 
 /** Test helper — drops all cached rows. */
 export function clearStoredAnalyses(): void {
-  getDb().exec("DELETE FROM analyses");
+  const conn = getDb();
+  if (!conn) return;
+  conn.exec("DELETE FROM analyses");
+}
+
+/** Test helper — reset singleton after env path changes. */
+export function resetAnalysisStoreForTests(): void {
+  db = null;
+  unavailable = false;
 }
